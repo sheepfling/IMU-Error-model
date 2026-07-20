@@ -42,3 +42,27 @@ jobs:
         with:
           name: imu-error-model-documentation
           path: docs/artifacts/imu_error_model.pdf
+
+  analysis:
+    name: Analysis artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[analysis]"
+      - run: python scripts/ci.py analysis --duration 120 --adis-duration 512 --reconstruction-duration 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: imu-error-model-analysis
+          path: |
+            artifacts/allan/*.csv
+            artifacts/allan/*.png
+            artifacts/adis-allan-overlay/*.csv
+            artifacts/adis-allan-overlay/*.png
+            artifacts/showcase/*.png
+            artifacts/showcase/*.svg
+            artifacts/showcase/manifest.csv

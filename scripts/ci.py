@@ -56,6 +56,31 @@ def allan(duration: float, points: int, adis_duration: float) -> None:
     )
 
 
+def showcase(allan_duration: float, reconstruction_duration: float, temperature_points: int) -> None:
+    """Regenerate polished storefront-oriented showcase plots."""
+    run(
+        "examples/showcase.py",
+        "--allan-duration",
+        str(allan_duration),
+        "--reconstruction-duration",
+        str(reconstruction_duration),
+        "--temperature-points",
+        str(temperature_points),
+    )
+
+
+def analysis(
+    duration: float,
+    points: int,
+    adis_duration: float,
+    reconstruction_duration: float,
+    temperature_points: int,
+) -> None:
+    """Regenerate the complete analysis and showcase artifact bundle."""
+    allan(duration, points, adis_duration)
+    showcase(duration, reconstruction_duration, temperature_points)
+
+
 def coverage() -> None:
     run("-m", "coverage", "run", "-m", "pytest", "-q")
     run("-m", "coverage", "report", "--fail-under=85")
@@ -95,12 +120,22 @@ def docs(build_pdf: bool) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="task", required=True)
-    for name in ("test", "verify", "coverage", "lint", "build", "allan", "all"):
+    for name in ("test", "verify", "coverage", "lint", "build", "allan", "showcase", "analysis", "all"):
         subparsers.add_parser(name)
     allan_parser = subparsers.choices["allan"]
     allan_parser.add_argument("--duration", type=float, default=120.0, help="all-profile record duration in seconds")
     allan_parser.add_argument("--points", type=int, default=24, help="number of logarithmic Allan points")
     allan_parser.add_argument("--adis-duration", type=float, default=2048.0, help="ADIS overlay record duration in seconds")
+    showcase_parser = subparsers.choices["showcase"]
+    showcase_parser.add_argument("--allan-duration", type=float, default=240.0)
+    showcase_parser.add_argument("--reconstruction-duration", type=float, default=60.0)
+    showcase_parser.add_argument("--temperature-points", type=int, default=120)
+    analysis_parser = subparsers.choices["analysis"]
+    analysis_parser.add_argument("--duration", type=float, default=240.0, help="Allan and showcase record duration in seconds")
+    analysis_parser.add_argument("--points", type=int, default=24, help="number of logarithmic Allan points")
+    analysis_parser.add_argument("--adis-duration", type=float, default=2048.0, help="ADIS overlay record duration in seconds")
+    analysis_parser.add_argument("--reconstruction-duration", type=float, default=60.0)
+    analysis_parser.add_argument("--temperature-points", type=int, default=120)
     docs_parser = subparsers.add_parser("docs")
     docs_parser.add_argument("--build", action="store_true", help="compile the LaTeX PDF")
     args = parser.parse_args()
@@ -112,6 +147,28 @@ def main() -> int:
         if args.duration <= 0 or args.adis_duration <= 0 or args.points < 2:
             raise ValueError("Allan durations must be positive and points must be at least two")
         allan(args.duration, args.points, args.adis_duration)
+    elif args.task == "showcase":
+        if args.allan_duration <= 0 or args.reconstruction_duration <= 0 or args.temperature_points < 2:
+            raise ValueError("showcase durations must be positive and temperature-points must be at least two")
+        showcase(args.allan_duration, args.reconstruction_duration, args.temperature_points)
+    elif args.task == "analysis":
+        if (
+            args.duration <= 0
+            or args.adis_duration <= 0
+            or args.points < 2
+            or args.reconstruction_duration <= 0
+            or args.temperature_points < 2
+        ):
+            raise ValueError(
+                "analysis durations must be positive, points must be at least two, and temperature-points must be at least two"
+            )
+        analysis(
+            args.duration,
+            args.points,
+            args.adis_duration,
+            args.reconstruction_duration,
+            args.temperature_points,
+        )
     elif args.task == "coverage":
         coverage()
     elif args.task == "lint":

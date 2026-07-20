@@ -93,6 +93,38 @@ short-correlation test fixtures, and regenerates the ADIS datasheet overlay in
 `artifacts/adis-allan-overlay/`. Use `--duration`, `--points`, and
 `--adis-duration` to change the record lengths or plot density.
 
+For polished storefront-oriented charts, run:
+
+```bash
+python3 scripts/ci.py showcase
+```
+
+This writes paired PNG/SVG assets under `artifacts/showcase/`:
+
+- `hero-allan-ladder`: representative navigation, tactical, and consumer
+  Allan-deviation curves.
+- `error-anatomy-allan`: white noise, Gauss–Markov bias, finite-band flicker,
+  and combined Allan signatures.
+- `reconstruction-drift`: long-term position and attitude drift from identical
+  truth motion.
+- `measurement-time-series`: truth rates compared with sampled imperfect rates
+  and their residual errors.
+- `thermal-trends`: thermal-only accelerometer and gyroscope error trends.
+
+Use `--allan-duration`, `--reconstruction-duration`, and
+`--temperature-points` to control generation time and density. The assets are
+notional showcase renderings, not vendor performance claims.
+
+To regenerate the complete analysis bundle in one step:
+
+```bash
+python3 scripts/ci.py analysis
+```
+
+This combines the standard Allan-deviation plots, the ADIS datasheet overlay,
+and all showcase plots. Normal `pytest` intentionally does not generate files
+or require Matplotlib; the explicit analysis task owns generated artifacts.
+
 ## Analysis example
 
 To compare dead-reckoning drift across all hardware-estimate profiles:

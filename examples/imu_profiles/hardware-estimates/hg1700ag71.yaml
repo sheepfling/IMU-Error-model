@@ -1,0 +1,62 @@
+# Reference links:
+# - Honeywell HG1700 product page: https://aerospace.honeywell.com/us/en/products-and-services/products/navigation-and-sensors/inertial-measurement-units/hg1700-inertial-measurement-unit
+# NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
+# not official manufacturer settings, specifications, certification data, or
+# performance guarantees. References provide provenance, not authority.
+schema_version: 1
+model_name: HG1700AG71
+sample_period_s: 0.01
+
+metadata:
+  family: hg1700
+  vendor: "Honeywell"
+  grade: tactical
+  revision: AG71
+  source_date: "2026-07-19"
+  tags: [candidate, gyro_technology_rlg, accel_technology_quartz_rba]
+  active: false
+
+accelerometer:
+  # AG71 inertial channel: +/-70 g, 300 ppm scale accuracy, 500 ppm linearity.
+  measurement_range: 686.4655
+  linear_scale_factor: 300e-6
+  nonlinear_scale_factor: 500e-6
+  # AG71 inertial channel: VRW 0.065 ft/s/sqrt(hr) -> SI density.
+  noise_spectral_density: 3.302e-4
+  # AG71 inertial channel output noise is 0.008 ft/sec max; its 500 urad
+  # alignment stability, 100 urad non-orthogonality, and 500 ug VRE are
+  # documented but intentionally not mapped into this noise-only profile.
+  # AG71 inertial channel: 1 mg bias, used as a conservative 1-sigma proxy.
+  turn_on_bias_std: 0.00980665
+  long_term_bias_std: 0.00980665
+  bias_correlation_time: 250.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]
+
+gyro:
+  # AG71 inertial channel: +/-1017 deg/s, 150 ppm scale accuracy and linearity.
+  measurement_range: 17.749998492782332
+  linear_scale_factor: 150e-6
+  nonlinear_scale_factor: 150e-6
+  # AG71 inertial channel: ARW 0.125 deg/sqrt(hr) -> SI density.
+  noise_spectral_density: 3.63610260832152e-5
+  # AG71 inertial channel output noise is 80 urad max; its 500 urad alignment
+  # stability and 100 urad non-orthogonality are documented but not mapped.
+  # AG71 inertial channel: 1 deg/hr bias, used as a conservative 1-sigma proxy.
+  turn_on_bias_std: 4.84813681109536e-6
+  long_term_bias_std: 4.84813681109536e-6
+  bias_correlation_time: 300.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]

@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imu-error-model"
+version = "0.1.0"
+description = "Composable stochastic and parametric error models for synthetic IMU increments"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26"]
+keywords = ["imu", "inertial", "sensor", "noise", "simulation", "allan-variance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "coverage[toml]>=7", "PyYAML>=6"]
+profiles = ["PyYAML>=6"]
+analysis = ["PyYAML>=6", "matplotlib>=3.8"]
+dev = ["pytest>=8", "coverage[toml]>=7", "ruff>=0.6", "build>=1.2", "PyYAML>=6"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+branch = true
+source = ["imu_error_model"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501", "E702"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,87 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,hyperref}
+\title{IMU Error Model}
+\author{imu-error-model package}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Purpose and boundary}
+The package models the measurement errors of a three-axis accelerometer and
+gyroscope. It consumes truth velocity with gravity excluded and truth
+orientation. It does not implement rigid-body dynamics, gravity, navigation,
+or state reconstruction.
+
+\section{Truth-state contract}
+Let $R^w_b(t)$ map body-frame vectors into the world frame and let
+$v^w(t)$ be truth velocity with gravity excluded. For an interval beginning at
+$t_0$ and ending at $t_1$, the ideal increments are
+\begin{align}
+\Delta v_b &= (R^w_b(t_0))^T\left[v^w(t_1)-v^w(t_0)\right],\\
+\Delta\theta_b &= \operatorname{Log}\left((R^w_b(t_0))^T R^w_b(t_1)\right)^\vee.
+\end{align}
+Both are expressed in the body frame at $t_0$.
+
+The public 	exttt{measure} contract takes a timestamp in seconds, a
+three-vector $v^w$ in m/s, a proper $3\times3$ rotation matrix, and an
+optional temperature in degrees Celsius. The first call establishes the
+initial state and returns zero increments; later calls require strictly
+increasing timestamps. 	exttt{ImuOutput.delta\_v} is in m/s and
+	exttt{ImuOutput.delta\_theta} is in radians.
+
+\section{Measurement pipeline}
+The built-in model applies, independently to acceleration and angular rate,
+\begin{equation}
+\text{truth} \rightarrow \text{scale/nonlinearity}
+\rightarrow \text{misalignment} \rightarrow \text{bias}
+\rightarrow \text{white noise} \rightarrow \text{clipping}
+\rightarrow \text{quantization}.
+\end{equation}
+The resulting rates are multiplied by $\Delta t$ to produce the reported
+$\Delta v$ and $\Delta\theta$.
+
+\section{Stochastic processes}
+White rate noise with spectral density $N$ is sampled with standard deviation
+$N/\sqrt{\Delta t}$. A stationary first-order Gauss--Markov bias is updated as
+\begin{equation}
+b_{k+1}=\phi b_k+\eta_k, \qquad
+\phi=e^{-\Delta t/T}, \qquad
+\eta_k\sim\mathcal{N}(0,\sigma_b^2(1-\phi^2)).
+\end{equation}
+When no correlation time is supplied, the same parameter is interpreted as a
+random-walk driving standard deviation.
+
+An optional 	exttt{noise\_covariance} is a positive-semidefinite $3\times3$
+continuous-time covariance for the corresponding rate noise. It is used in
+place of independent-axis white-noise sampling. Accelerometer densities are
+in m/s$^2/\sqrt{\mathrm{Hz}}$ and gyro densities are in
+rad/s$/\sqrt{\mathrm{Hz}}$.
+
+The turn-on bias is sampled once at reset and remains fixed for that simulated
+run. It is intentionally separate from the in-run Gauss--Markov state; this
+prevents a repeatability error from being mistaken for a time-correlated drift
+process in Allan analysis.
+
+To approximate a finite bias-instability plateau, the package can sum several
+independent Gauss--Markov processes with logarithmically spaced correlation
+times. The component amplitudes are normalized so the Allan deviation matches
+the configured target near the geometric center of the selected time band.
+
+\section{Extension and verification}
+Alternate implementations satisfy \texttt{ImuModelProtocol} or inherit
+\texttt{BaseImuModel}. The repository's Python task runner provides local and
+GitHub-compatible test, coverage, lint, package-build, and documentation
+commands. Notional hardware-estimate YAML profiles are retained under the
+examples tree. Every numeric value in those profiles is approximate and
+non-official, including values anchored to datasheets; they are not vendor
+specifications, certification results, or performance guarantees. The optional
+YAML adapter maps their fields into the current schema without rewriting the
+source files and preserves their metadata and reference links.
+
+The package is distributed as \texttt{imu-error-model} under the MIT License.
+The core package does not include vendor-certified configurations; the
+hardware-oriented profiles are illustrative research examples only.
+
+\end{document}

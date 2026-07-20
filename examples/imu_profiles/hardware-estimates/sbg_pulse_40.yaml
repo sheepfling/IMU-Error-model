@@ -1,0 +1,84 @@
+# NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
+# not official manufacturer settings, specifications, certification data, or
+# performance guarantees. References provide provenance, not authority.
+schema_version: 1
+model_name: SBG_PULSE_40
+sample_period_s: 0.0005
+metadata:
+  family: "pulse40"
+  vendor: "SBG Systems"
+  grade: "tactical"
+  revision: "May2025"
+  source: "config/imu_models/sbg_pulse_40.yaml"
+  source_date: "2025-05-01"
+  tags: [ "baseline", "gyro_technology_mems_vibratory", "accel_technology_mems", "temperature_dependent" ]
+  active: true
+accelerometer:
+  # Measurement range +/-40 g
+  measurement_range: 392.266
+  # Scale factor error 100 ppm, over +/-1g, one-year accelerated aging
+  linear_scale_factor: 0.0001
+  # Non-linearity (ppm of FS) 50 ppm, over +/-1g
+  nonlinear_scale_factor: 0.00005
+  # Velocity Random Walk / Noise spectral density
+  # 40 ug/sqrt(Hz) = 3.92266e-4 m/s^1.5
+  noise_spectral_density: 0.000392266
+  # Long-term bias / bias repeatability
+  # midpoint (1500 + 1250) / 2 = 1375 ug
+  # 1375e-6 * g
+  turn_on_bias_std: 0.01348414375
+  # In-run bias instability
+  # 6 ug = 5.88399e-5 m/s^2
+  long_term_bias_std: 0.0000588399
+  # From Allan variance chart
+  bias_correlation_time: 250.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  # Scaling: 1048576 LSB per 1 m/s^2
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    # Units: m/s^2 per C
+    bias_linear_per_C: [ 5.0e-4, 5.0e-4, 5.0e-4 ]
+    # Units: fractional error per C
+    scale_linear_per_C: [ 2.0e-5, 2.0e-5, 2.0e-5 ]
+  # Not modeled:
+  # - Cross-axis sensitivity
+  # - Vibration Rectification Coefficient (VRC)
+  # - Bandwidth
+  # - Sampling rate
+gyro:
+  # Measurement range +/-490 deg/s
+  measurement_range: 8.5521133348
+  # Scale factor error 1500 ppm
+  linear_scale_factor: 0.0015
+  # Non-linearity 50 ppm
+  nonlinear_scale_factor: 0.00005
+  # Noise spectral density
+  # 5.0 deg/h/sqrt(Hz) = 2.4240684055e-5 rad/s/sqrt(Hz)
+  noise_spectral_density: 0.000024240684055
+  # Long-term bias / bias repeatability
+  # 250 deg/h = 1.212034203e-3 rad/s
+  turn_on_bias_std: 0.001212034203
+  # In-run bias instability
+  # 0.8 deg/h = 3.8785094489e-6 rad/s
+  long_term_bias_std: 0.0000038785094489
+  # From Allan variance chart
+  bias_correlation_time: 300.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  # Scaling: 67108864 LSB per 1 rad/s
+  scale: 67108864.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    # Units: rad/s per C
+    bias_linear_per_C: [ 1.0e-4, 1.0e-4, 1.0e-4 ]
+    # Units: fractional error per C
+    scale_linear_per_C: [ 3.0e-5, 3.0e-5, 3.0e-5 ]
+  # Not modeled:
+  # - Cross-axis sensitivity
+  # - Vibration Rectification Coefficient (VRC)
+  # - Acceleration sensitivity
+  # - Bandwidth

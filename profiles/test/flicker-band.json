@@ -1,0 +1,30 @@
+{
+  "model_name": "FlickerBandTest",
+  "family": "synthetic-flicker",
+  "grade": "test",
+  "sample_period_s": 0.01,
+  "accelerometer": {
+    "white_noise_density": 0.0,
+    "turn_on_bias_std": 0.0,
+    "bias_std": 0.0,
+    "flicker_bias_std": 0.02,
+    "flicker_min_correlation_time": 0.1,
+    "flicker_max_correlation_time": 10.0,
+    "flicker_components": 12,
+    "measurement_range": null,
+    "apply_clipping": false,
+    "output_scale": 1.0
+  },
+  "gyroscope": {
+    "white_noise_density": 0.0,
+    "turn_on_bias_std": 0.0,
+    "bias_std": 0.0,
+    "flicker_bias_std": 0.01,
+    "flicker_min_correlation_time": 0.1,
+    "flicker_max_correlation_time": 10.0,
+    "flicker_components": 12,
+    "measurement_range": null,
+    "apply_clipping": false,
+    "output_scale": 1.0
+  }
+}

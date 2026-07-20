@@ -1,0 +1,53 @@
+# Reference links:
+# - Honeywell HG5700 product page: https://aerospace.honeywell.com/us/en/products-and-services/products/navigation-and-sensors/inertial-measurement-units/hg5700-inertial-measurement-unit
+# NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
+# not official manufacturer settings, specifications, certification data, or
+# performance guarantees. References provide provenance, not authority.
+schema_version: 1
+model_name: HG5700AA01
+sample_period_s: 0.0016666667
+
+metadata:
+  family: hg5700
+  vendor: "Honeywell"
+  grade: navigation
+  revision: AA01
+  source_date: "2026-02-23"
+  tags: [candidate, gyro_technology_rlg, accel_technology_quartz_vba]
+  active: false
+
+accelerometer:
+  measurement_range: 362.84605
+  # HG5700 family comparison chart: 120 ppm scale factor.
+  linear_scale_factor: 120e-6
+  nonlinear_scale_factor: 0.0
+  noise_spectral_density: 3.302e-4
+  turn_on_bias_std: 0.002941995
+  long_term_bias_std: 4.903325e-4
+  bias_correlation_time: 250.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]
+
+gyro:
+  measurement_range: 18.7448361664191
+  # HG5700 family comparison chart: 40 ppm scale factor.
+  linear_scale_factor: 40e-6
+  nonlinear_scale_factor: 0.0
+  noise_spectral_density: 7.27220521664304e-6
+  turn_on_bias_std: 6.7873915355335e-7
+  long_term_bias_std: 1.93925472443814e-7
+  bias_correlation_time: 300.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]

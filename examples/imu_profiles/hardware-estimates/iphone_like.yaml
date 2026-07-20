@@ -1,0 +1,70 @@
+# Reference links:
+# - Apple iPhone sensors list (high dynamic range gyro, high-g accelerometer): https://support.apple.com/en-us/111829
+# - iFixit iPhone 15 Pro Max Chip ID (Bosch Sensortec 6-axis accel/gyro): https://www.ifixit.com/Guide/iPhone%2B15%2BPro%2BMax%2BChip%2BID/165320
+# - Measured iPhone XR IMU error stats (bias instability, random walks, biases):
+#   Capuano et al., "Smartphone MEMS Accelerometer and Gyroscope Measurement Errors...", Sensors 2023, 23, 7609:
+#   https://www.mdpi.com/1424-8220/23/17/7609
+# NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
+# not official manufacturer settings, specifications, certification data, or
+# performance guarantees. References provide provenance, not authority.
+schema_version: 1
+model_name: iPhoneLike
+sample_period_s: 0.01
+
+metadata:
+  family: iphone_like
+  vendor: "Apple (effective phone stack)"
+  grade: consumer
+  revision: mdpi_sensors_2023_iphone_xr
+  source_date: "2026-02-23"
+  tags: [candidate, benchmark, gyro_technology_mems_vibratory, accel_technology_mems]
+  active: false
+
+accelerometer:
+  # Modeling choice: typical phone-class selectable range, not published by Apple
+  measurement_range: 156.9064         # +/-16 g, m/s^2
+  linear_scale_factor: 5000e-6        # placeholder (0.5%); tune if you want
+  nonlinear_scale_factor: 1000e-6     # placeholder (0.1%); tune if you want
+
+  # From MDPI Table 4 (mean): Velocity Random Walk N
+  noise_spectral_density: 0.001355133 # m/s^2/sqrt(Hz)
+  # From MDPI Table 4 (mean): Bias Instability B
+  long_term_bias_std: 0.000882967     # m/s^2
+
+  # From MDPI Table 6 (mean accel bias): use as run-to-run / turn-on proxy
+  turn_on_bias_std: 0.038133          # m/s^2
+
+  # Correlation time is a modeling knob; phone Allan-min tends to be ~minutes-ish
+  bias_correlation_time: 120.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]
+
+gyro:
+  # Modeling choice: typical phone-class selectable range
+  measurement_range: 34.906585039886586  # +/-2000 deg/s, rad/s
+  linear_scale_factor: 5000e-6
+  nonlinear_scale_factor: 1000e-6
+
+  # From MDPI Table 5 (mean): Angular Random Walk N
+  noise_spectral_density: 0.001452726     # rad/s/sqrt(Hz)
+  # From MDPI Table 5 (mean): Bias Instability B
+  long_term_bias_std: 0.000090033         # rad/s  (~18.6 deg/hr)
+
+  # From MDPI Table 7 (mean gyro bias at 10 deg/s): use as turn-on proxy
+  turn_on_bias_std: 0.00299558            # rad/s
+
+  bias_correlation_time: 120.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]

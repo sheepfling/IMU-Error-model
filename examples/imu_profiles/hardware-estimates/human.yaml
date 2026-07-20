@@ -1,0 +1,61 @@
+# Human vestibular system as an IMU-like sensor (very approximate).
+# Sources for anchors:
+# - Head rotation peaks ~25 rad/s (voluntary): https://pmc.ncbi.nlm.nih.gov/articles/PMC6444911/
+# - Linear accel direction thresholds ~6.5-8.5 cm/s^2: https://pmc.ncbi.nlm.nih.gov/articles/PMC1182363/
+# - Near-threshold angular velocity ~1 deg/s, discrimination a few deg/s: https://pmc.ncbi.nlm.nih.gov/articles/PMC2934934/ and https://pmc.ncbi.nlm.nih.gov/articles/PMC2939372/
+# - Canal time constant ~3.7-7 s: https://entokey.com/vestibular-physiology/ and https://pmc.ncbi.nlm.nih.gov/articles/PMC10879882/
+# NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
+# not official manufacturer settings, specifications, certification data, or
+# performance guarantees. References provide provenance, not authority.
+schema_version: 1
+model_name: HumanVestibular
+sample_period_s: 0.01
+
+metadata:
+  family: human_vestibular
+  vendor: "Biologic"
+  grade: "biological"
+  revision: v1
+  source_date: "2026-02-23"
+  tags: [benchmark, vestibular_only]
+  active: false
+
+accelerometer:
+  # Otolith organs respond to linear acceleration + gravity.
+  # Range choice: allow up to ~8 g (naturalistic upper end), even though perception saturates.
+  measurement_range: 78.4532          # m/s^2  (8 g)
+  linear_scale_factor: 0.0            # not meaningful here
+  nonlinear_scale_factor: 0.0         # not modeled
+  # Use direction-threshold ~0.07-0.09 m/s^2 as an RMS-ish noise floor over ~1 Hz scale.
+  noise_spectral_density: 0.08        # m/s^2/sqrt(Hz) (order-of-mag)
+  turn_on_bias_std: 0.2               # m/s^2 (context/adaptation dependent)
+  long_term_bias_std: 0.08            # m/s^2 (order-of-mag)
+  bias_correlation_time: 10.0         # s (adaptation-ish timescale)
+  apply_clipping: true
+  misalignment_std: 0.0
+  scale: 1.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]
+
+gyro:
+  # Semicircular canals encode angular motion but adapt (high-pass).
+  # Range choice: cover peak voluntary head turns and naturalistic upper end.
+  measurement_range: 26.2             # rad/s (~1500 deg/s)
+  linear_scale_factor: 0.0
+  nonlinear_scale_factor: 0.0
+  # Use ~1 deg/s near-threshold as an RMS-ish noise floor over ~1 Hz scale.
+  noise_spectral_density: 0.0175      # rad/s/sqrt(Hz) (about 1 deg/s/sqrt(Hz))
+  turn_on_bias_std: 0.05              # rad/s (context-dependent, "zero" drifts)
+  long_term_bias_std: 0.0175          # rad/s (order-of-mag)
+  bias_correlation_time: 7.0          # s (canal mechanics/adaptation time constant)
+  apply_clipping: true
+  misalignment_std: 0.0
+  scale: 1.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]

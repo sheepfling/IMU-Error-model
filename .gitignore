@@ -1,0 +1,24 @@
+# Imported reference material is deliberately kept out of the project history.
+INBOX/
+.DS_Store
+
+# Local Python environments and generated files.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+coverage.xml
+.coverage
+htmlcov/
+.ruff_cache/
+dist/
+docs/artifacts/
+artifacts/
+
+# Local research downloads are tracked through research/manifest.csv, not as
+# package inputs. Keep source PDFs and rendered review artifacts out of Git.
+research/sources/
+research/artifacts/

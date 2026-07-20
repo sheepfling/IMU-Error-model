@@ -1,0 +1,24 @@
+{
+  "accelerometer": {
+    "white_noise_density": 0.0008825985,
+    "turn_on_bias_std": 0.002941995,
+    "bias_std": 0.0001,
+    "bias_correlation_time": 200.0,
+    "scale_factor": 0.0002,
+    "nonlinear_factor": 0.0001,
+    "measurement_range": 39.2266,
+    "misalignment_std": 0.00035,
+    "reference_temperature": 25.0
+  },
+  "gyroscope": {
+    "white_noise_density": 0.00006981317,
+    "turn_on_bias_std": 0.01745329,
+    "bias_std": 0.0001,
+    "bias_correlation_time": 300.0,
+    "scale_factor": 0.002,
+    "nonlinear_factor": 0.0002,
+    "measurement_range": 8.72665,
+    "misalignment_std": 0.00035,
+    "reference_temperature": 25.0
+  }
+}

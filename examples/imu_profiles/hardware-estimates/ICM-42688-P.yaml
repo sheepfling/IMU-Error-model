@@ -1,0 +1,63 @@
+# Reference links:
+# - Consumer gyro bias instability context (paper): https://pmc.ncbi.nlm.nih.gov/articles/PMC8309765/
+# NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
+# not official manufacturer settings, specifications, certification data, or
+# performance guarantees. References provide provenance, not authority.
+schema_version: 1
+model_name: ICM-42688-P
+sample_period_s: 0.001
+
+metadata:
+  family: icm42688p
+  vendor: "TDK InvenSense"
+  grade: consumer
+  revision: v1.7
+  source_date: "2026-02-23"
+  tags: [candidate, gyro_technology_mems_vibratory, accel_technology_mems]
+  active: false
+
+accelerometer:
+  # ±16 g
+  measurement_range: 156.9064            # m/s^2
+  # Sensitivity initial tolerance ±0.5% -> 5000 ppm
+  linear_scale_factor: 5000e-6
+  # Nonlinearity ±0.1% (datasheet table) -> 1000 ppm
+  nonlinear_scale_factor: 1000e-6
+  # PSD @ 10 Hz: up to 70 ug/sqrt(Hz) (use worst axis)
+  noise_spectral_density: 6.864655e-4    # m/s^2/sqrt(Hz)
+  # Initial zero-g tolerance ±20 mg
+  turn_on_bias_std: 1.96133e-1           # m/s^2
+  # Datasheet does not give "bias instability"; pick a conservative in-run placeholder (1 mg)
+  long_term_bias_std: 9.80665e-3         # m/s^2
+  bias_correlation_time: 300.0           # modeling assumption (Allan-min typical order)
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]
+
+gyro:
+  # ±2000 deg/s
+  measurement_range: 34.906585039886586  # rad/s
+  # Sensitivity initial tolerance ±0.5% -> 5000 ppm
+  linear_scale_factor: 5000e-6
+  # Nonlinearity ±0.1% -> 1000 ppm
+  nonlinear_scale_factor: 1000e-6
+  # Rate noise spectral density @ 10 Hz: 0.0028 deg/s/sqrt(Hz)
+  noise_spectral_density: 4.886921905584123e-5  # rad/s/sqrt(Hz)
+  # Initial ZRO tolerance ±0.5 deg/s
+  turn_on_bias_std: 8.726646259971648e-3 # rad/s
+  # Consumer gyro bias instability order ~50 deg/hr (literature)
+  long_term_bias_std: 2.4240684055476798e-4 # rad/s
+  bias_correlation_time: 300.0            # modeling assumption
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]

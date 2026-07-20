@@ -1,0 +1,64 @@
+# Reference links:
+# - Honeywell HG9900 product page: https://aerospace.honeywell.com/us/en/products-and-services/products/navigation-and-sensors/inertial-measurement-units/hg9900-inertial-measurement-unit
+# The Rev C specification gives an operating range of -40 to +71 C.
+# NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
+# not official manufacturer settings, specifications, certification data, or
+# performance guarantees. References provide provenance, not authority.
+schema_version: 1
+model_name: HG9900
+sample_period_s: 0.0033333333
+
+metadata:
+  family: hg9900
+  vendor: "Honeywell"
+  grade: navigation
+  revision: v1
+  source_date: "2026-02-23"
+  tags: [baseline,candidate,gyro_technology_rlg,accel_technology_quartz_qa]
+  active: true
+
+accelerometer:
+  measurement_range: 196.133
+  # Rev C specification: 117 ppm at less than one year; 175 ppm at five years.
+  linear_scale_factor: 117e-6
+  nonlinear_scale_factor: 0.0
+  # Rev C specification: VRW 0.0025 ft/s/sqrt(hr) -> SI density.
+  noise_spectral_density: 1.27e-5
+  # Rev C 1X/20 g quantization: 0.0054 ft/s per count. This is an
+  # increment-domain output quantity and is not mapped to the rate-domain
+  # quantization field in this package.
+  turn_on_bias_std: 2.4516625e-4
+  # Rev C short-term bias requirement: 100 ug max; 120 ug at five years.
+  long_term_bias_std: 9.80665e-4
+  bias_correlation_time: 3600.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]
+
+gyro:
+  measurement_range: 9.59931088596881
+  linear_scale_factor: 5.0e-6
+  nonlinear_scale_factor: 0.0
+  # Rev C Q=20 configuration: ARW 0.0021 deg/sqrt(hr).
+  noise_spectral_density: 6.108652381980153e-7
+  # Rev C Q=20 configuration: 0.0041 deg/hr 1-sigma bias.
+  turn_on_bias_std: 1.9877360925490974e-8
+  long_term_bias_std: 1.9877360925490974e-8
+  # Rev C quantization: 1.11 arc-sec per pulse; increment-domain and not
+  # mapped to the rate-domain quantization field.
+  bias_correlation_time: 3600.0
+  apply_clipping: false
+  # Rev C input-axis stability: 15 urad; not treated as fixed installation
+  # misalignment because the document defines it as a stability requirement.
+  misalignment_std: 0.0
+  scale: 1048576.0
+  temperature_model:
+    enabled: true
+    reference_temp_C: 25.0
+    bias_linear_per_C: [ 0.0, 0.0, 0.0 ]
+    scale_linear_per_C: [ 0.0, 0.0, 0.0 ]

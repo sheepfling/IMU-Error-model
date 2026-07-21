@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -13,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TOP_LEVEL_ALLOWLIST = {Path("README.md"), Path("CHANGELOG.md")}
 FORBIDDEN = re.compile(r"(?:INBOX/|research/sources/|manual|\.pdf|source document|controlled source)", re.IGNORECASE)
 LINK = re.compile(r"(?<!!)(?:\[[^\]]*\])\(([^)]+)\)")
+MALFORMED_LINK = re.compile(r"(?<!\!)\[[^\]\n]+\]\([^\)\n]*$")
 SOURCE_SUFFIXES = {".c", ".cfg", ".cpp", ".h", ".json", ".py", ".tex", ".toml", ".yaml", ".yml"}
 
 
@@ -27,6 +29,15 @@ def markdown_files() -> list[Path]:
 def link_target(raw: str) -> str:
     target = raw.strip().strip("<>").split(" ", 1)[0]
     return target
+
+
+def is_gitignored(relative: str) -> bool:
+    result = subprocess.run(
+        ["git", "check-ignore", "--no-index", "--quiet", "--", relative],
+        cwd=ROOT,
+        check=False,
+    )
+    return result.returncode == 0
 
 
 def source_files() -> list[Path]:
@@ -54,10 +65,12 @@ def check() -> list[str]:
         for line_number, line in enumerate(text.splitlines(), start=1):
             if FORBIDDEN.search(line):
                 errors.append(f"{relative}:{line_number}: forbidden source-document reference")
+            if MALFORMED_LINK.search(line):
+                errors.append(f"{relative}:{line_number}: malformed Markdown link")
             for match in LINK.finditer(line):
                 target = link_target(match.group(1))
                 parsed = urlsplit(target)
-                if parsed.scheme or target.startswith("//"):
+                if parsed.scheme or target.startswith(("/", "\\", "//")):
                     errors.append(f"{relative}:{line_number}: link is not relative: {target}")
                     continue
                 target_path = target.split("#", 1)[0]
@@ -73,7 +86,7 @@ def check() -> list[str]:
                     errors.append(f"{relative}:{line_number}: link target does not exist: {target}")
                     continue
                 ignored = resolved.relative_to(ROOT).as_posix()
-                if ignored.startswith(("INBOX/", "research/sources/", "research/artifacts/")):
+                if is_gitignored(ignored):
                     errors.append(f"{relative}:{line_number}: link target is gitignored: {target}")
                     continue
                 resolved_relative = resolved.relative_to(ROOT)

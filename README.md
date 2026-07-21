@@ -53,10 +53,10 @@ fields into the current model while retaining metadata, sample period, source
 path, and reference links.
 
 The built-in model supports independent white noise, correlated 3-axis noise
-covariance, turn-on bias, random-walk/Gauss–Markov bias, fixed run-level
-misalignment, scale factor, nonlinearity, thermal bias/noise coefficients,
-clipping, and quantization. More elaborate thermal behavior can be supplied by
-implementing `ThermalModel`.
+covariance, turn-on bias, random-walk/Gauss–Markov bias, a finite-band
+flicker-bias approximation, fixed run-level misalignment, scale factor,
+nonlinearity, thermal bias/noise coefficients, clipping, and quantization. More
+elaborate thermal behavior can be supplied by implementing `ThermalModel`.
 
 ## Development and CI
 
@@ -172,3 +172,51 @@ flicker-bias approximation through `flicker_bias_std`,
 `flicker_min_correlation_time`, `flicker_max_correlation_time`, and
 `flicker_components`. It is calibrated to the requested Allan-deviation level
 near the geometric-center τ of that band.
+
+### Allan-variance meaning of the stochastic terms
+
+The stochastic parameters are rate-domain parameters. With sample period
+`dt`, `white_noise_density = N` produces independent rate samples with
+standard deviation `N / sqrt(dt)`. Under the estimator used by the analysis
+scripts, its short-time Allan deviation is therefore approximately
+
+```text
+sigma_A(tau) = N / sqrt(tau)
+```
+
+For a stationary Gauss–Markov bias with stationary standard deviation
+`bias_std = sigma_b` and correlation time `T`, the continuous-time reference
+curve is
+
+```text
+sigma_A²(tau) = sigma_b² [
+    2 T / tau
+    - (T / tau)² (3 - 4 exp(-tau/T) + exp(-2 tau/T))
+]
+```
+
+It rises with an approximately `+1/2` log-log slope at short averaging times,
+turns over near `T`, and falls with an approximately `-1/2` slope at long
+averaging times. If `bias_correlation_time` is omitted, `bias_std` instead
+specifies the random-walk driving scale; that process has the expected
+longer-term `+1/2` Allan slope rather than a stationary knee.
+
+The finite-band flicker model is a practical datasheet-matching approximation,
+not an infinite-band 1/f generator. It sums `flicker_components` independent
+Gauss–Markov processes whose correlation times are logarithmically spaced from
+`flicker_min_correlation_time` to `flicker_max_correlation_time`. The
+`flicker_bias_std` value is the target Allan deviation at the geometric-center
+averaging time
+
+```text
+tau_center = sqrt(flicker_min_correlation_time
+                  * flicker_max_correlation_time)
+```
+
+The result is a finite plateau-like region with roll-off outside the selected
+band. More components make the approximation smoother; they do not extend the
+physical validity range beyond the configured correlation-time bounds.
+Independent process contributions add in Allan variance, while finite records
+and random seeds introduce normal Monte Carlo variation around these reference
+curves. Use `python3 scripts/ci.py analysis` to regenerate the parity fixtures,
+Allan charts, and showcase plots together.

@@ -24,36 +24,152 @@ $t_0$ and ending at $t_1$, the ideal increments are
 \end{align}
 Both are expressed in the body frame at $t_0$.
 
-The public 	exttt{measure} contract takes a timestamp in seconds, a
+The public \texttt{measure} contract takes a timestamp in seconds, a
 three-vector $v^w$ in m/s, a proper $3\times3$ rotation matrix, and an
 optional temperature in degrees Celsius. The first call establishes the
 initial state and returns zero increments; later calls require strictly
-increasing timestamps. 	exttt{ImuOutput.delta\_v} is in m/s and
-	exttt{ImuOutput.delta\_theta} is in radians.
+increasing timestamps. \texttt{ImuOutput.delta\_v} is in m/s and
+\texttt{ImuOutput.delta\_theta} is in radians.
 
-\section{Measurement pipeline}
-The built-in model applies, independently to acceleration and angular rate,
+\section{Implemented measurement equation}
+Let
 \begin{equation}
-\text{truth} \rightarrow \text{scale/nonlinearity}
-\rightarrow \text{misalignment} \rightarrow \text{bias}
-\rightarrow \text{white noise} \rightarrow \text{clipping}
-\rightarrow \text{quantization}.
+u_{a,k} = \frac{\Delta v_{b,k}}{\Delta t_k}, \qquad
+u_{g,k} = \frac{\Delta\theta_{b,k}}{\Delta t_k}
 \end{equation}
-The resulting rates are multiplied by $\Delta t$ to produce the reported
-$\Delta v$ and $\Delta\theta$.
+be the ideal accelerometer and gyroscope rates for one sample interval. For
+sensor $s\in\{a,g\}$, define the temperature offset and the three linear
+thermal terms as
+\begin{equation}
+\delta T_k = T_k-T_{0,s}, \qquad
+\beta_{T,s} = c_{b,s}\delta T_k, \qquad
+\lambda_{T,s} = 1+c_{n,s}\delta T_k, \qquad
+\kappa_{T,s}=c_{\mathrm{sf},s}\delta T_k.
+\end{equation}
+The coefficients may be scalars or three-vectors; vector products below are
+elementwise. The default thermal model requires
+$\lambda_{T,s}\geq0$ componentwise.
+
+The deterministic scale and nonlinearity stage is
+\begin{equation}
+d_s(u_{s,k},T_k) =
+u_{s,k}\odot
+\left(1+s_s\mathbf{1}+\kappa_{T,s}\right)
+\odot\left(1+n_s\lVert u_{s,k}\rVert_2^2\right)
++\beta_{T,s},
+\end{equation}
+where $s_s$ is the fixed scale-factor coefficient and $n_s$ is the
+nonlinearity coefficient. A turn-on misalignment vector
+$\epsilon_s\sim\mathcal{N}(0,m_s^2 I)$ is sampled at reset and held fixed for
+the run. Its rotation matrix is
+\begin{equation}
+M_s=\exp\left([\epsilon_s]_\times\right).
+\end{equation}
+
+The pre-output rate is then
+\begin{equation}
+r_{s,k}=M_s d_s(u_{s,k},T_k)
++b_{\mathrm{on},s}+b_{s,k}+f_{s,k}+n_{s,k}.
+\end{equation}
+Clipping, when enabled, and quantization are applied to this rate:
+\begin{align}
+\bar r_{s,k} &=
+\operatorname{clip}(r_{s,k},-L_s,L_s),\\
+q_{s,k} &=
+\begin{cases}
+\delta_s\operatorname{round}(\bar r_{s,k}/\delta_s),
+&\text{if a quantization step }\delta_s\text{ is configured},\\
+\bar r_{s,k},&\text{otherwise}.
+\end{cases}
+\end{align}
+The reported increments include both per-channel and global output scales:
+\begin{equation}
+\Delta v^{\mathrm{meas}}_k =
+\Delta t_k\,o_a O_a q_{a,k}, \qquad
+\Delta\theta^{\mathrm{meas}}_k =
+\Delta t_k\,o_g O_g q_{g,k}.
+\end{equation}
+Here $L_s$ is the measurement range, $o_s$ is the channel output scale, and
+$O_s$ is the corresponding \texttt{ImuConfig} output scale. If clipping is
+disabled, $\operatorname{clip}$ is the identity.
 
 \section{Stochastic processes}
 White rate noise with spectral density $N$ is sampled with standard deviation
-$N/\sqrt{\Delta t}$. A stationary first-order Gauss--Markov bias is updated as
+$N/\sqrt{\Delta t}$. A stationary first-order Gauss--Markov bias is initialized
+with $b_0\sim\mathcal{N}(0,\sigma_b^2I)$ and updated as
 \begin{equation}
 b_{k+1}=\phi b_k+\eta_k, \qquad
 \phi=e^{-\Delta t/T}, \qquad
-\eta_k\sim\mathcal{N}(0,\sigma_b^2(1-\phi^2)).
+\eta_k\sim\mathcal{N}(0,\sigma_b^2(1-\phi^2)I).
 \end{equation}
 When no correlation time is supplied, the same parameter is interpreted as a
-random-walk driving standard deviation.
+random-walk driving standard deviation and the update is instead
+\begin{equation}
+b_{k+1}=b_k+\eta_k, \qquad
+\eta_k\sim\mathcal{N}(0,\sigma_b^2\Delta t\,I).
+\end{equation}
+In both cases, the turn-on bias is independently initialized as
+$b_{\mathrm{on}}\sim\mathcal{N}(0,\sigma_{\mathrm{on}}^2I)$ and remains fixed
+until the next reset.
 
-An optional 	exttt{noise\_covariance} is a positive-semidefinite $3\times3$
+For a supplied continuous-time covariance $C_s$, define
+\begin{equation}
+\Lambda_{s,k}=
+\begin{cases}
+\lambda_{T,s}I,&\lambda_{T,s}\text{ is scalar},\\
+\operatorname{diag}(\lambda_{T,s}),&\lambda_{T,s}\text{ is a vector}.
+\end{cases}
+\end{equation}
+The white rate noise used by the model is
+\begin{equation}
+n_{s,k}\sim
+\begin{cases}
+\mathcal{N}\left(0,\dfrac{N_s^2\Lambda_{s,k}\Lambda_{s,k}^{T}}{\Delta t_k}\right),
+& C_s\text{ is not supplied},\\[8pt]
+\mathcal{N}\left(0,\dfrac{\Lambda_{s,k}C_s\Lambda_{s,k}^{T}}{\Delta t_k}\right),
+& C_s\text{ is supplied}.
+\end{cases}
+\end{equation}
+When $C_s$ is supplied, it replaces the independent-axis density sampling
+path.
+
+\subsection{Allan-deviation interpretation}
+The analysis scripts use non-overlapping blocks of $m$ rate samples. With
+$J$ complete block means, the averaging time and estimator are
+\begin{align}
+\tau &= m\Delta t, \qquad
+\bar y_j^{(m)}=\frac{1}{m}\sum_{i=jm}^{(j+1)m-1}y_i,\\
+\widehat{\sigma}_A^2(\tau)
+&=\frac{1}{2(J-1)}
+\sum_{j=0}^{J-2}\left(\bar y_{j+1}^{(m)}-\bar y_j^{(m)}\right)^2.
+\end{align}
+For independent white rate noise, this estimator has the reference behavior
+\begin{equation}
+\sigma_A(\tau)=\frac{N}{\sqrt{\tau}}
+\end{equation}
+at the valid discrete averaging times $\tau=m\Delta t$.
+This is consistent with the sample-level standard deviation
+$N/\sqrt{\Delta t}$ used by the model and with the estimator used in
+\texttt{examples/allan\_variance.py}.
+
+For a stationary Gauss--Markov process with stationary standard deviation
+$\sigma_b$ and correlation time $T$, the exact continuous-time reference
+curve is
+\begin{equation}
+\sigma_A^2(\tau) =
+\sigma_b^2\left[
+\frac{2T}{\tau}
+- \left(\frac{T}{\tau}\right)^2
+\left(3 - 4e^{-\tau/T} + e^{-2\tau/T}\right)
+\right].
+\end{equation}
+It has an approximately $+1/2$ slope at $\tau \ll T$, turns near $T$, and
+has an approximately $-1/2$ slope at $\tau \gg T$. If $T$ is omitted, the
+implementation uses a random walk instead: \texttt{bias\_std} is then the
+driving scale and the long-time Allan deviation has an approximately $+1/2$
+slope rather than a stationary turnover.
+
+An optional \texttt{noise\_covariance} is a positive-semidefinite $3\times3$
 continuous-time covariance for the corresponding rate noise. It is used in
 place of independent-axis white-noise sampling. Accelerometer densities are
 in m/s$^2/\sqrt{\mathrm{Hz}}$ and gyro densities are in
@@ -66,8 +182,50 @@ process in Allan analysis.
 
 To approximate a finite bias-instability plateau, the package can sum several
 independent Gauss--Markov processes with logarithmically spaced correlation
-times. The component amplitudes are normalized so the Allan deviation matches
-the configured target near the geometric center of the selected time band.
+times:
+\begin{equation}
+b_f(t) = \sum_{i=1}^{K} x_i(t), \qquad
+T_i \in \operatorname{geomspace}(T_{\min},T_{\max},K).
+\end{equation}
+Each component is initialized with
+$x_{i,0}\sim\mathcal{N}(0,s_i^2I)$ and advanced exactly as
+\begin{equation}
+x_{i,k+1}=\phi_i x_{i,k}+\eta_{i,k}, \qquad
+\phi_i=e^{-\Delta t/T_i}, \qquad
+\eta_{i,k}\sim\mathcal{N}(0,s_i^2(1-\phi_i^2)I).
+\end{equation}
+Let $\mathcal{A}(v,T,\tau)$ denote the Allan variance of a stationary
+Gauss--Markov component with stationary variance $v$:
+\begin{equation}
+\mathcal{A}(v,T,\tau)=
+\frac{2v\left(T\tau-T^2(1-e^{-\tau/T})\right)
+-vT^2(1-e^{-\tau/T})^2}{\tau^2}.
+\end{equation}
+At the geometric-center averaging time
+\begin{equation}
+\tau_c = \sqrt{T_{\min}T_{\max}}.
+\end{equation}
+the implementation uses equal component standard deviations
+\begin{equation}
+s_i =
+\frac{\sigma_f}
+{\sqrt{\displaystyle\sum_{\ell=1}^{K}\mathcal{A}(1,T_\ell,\tau_c)}},
+\qquad
+\sigma_f=\texttt{flicker\_bias\_std}.
+\end{equation}
+Thus \texttt{flicker\_bias\_std} is an Allan-deviation target for the sum, not
+the standard deviation of one component. This is a finite-band $1/f$-like
+approximation: it produces a plateau-like region and rolls off outside the
+configured correlation-time band. Increasing \texttt{flicker\_components}
+makes the approximation smoother but does not widen that band. The process is
+not intended to represent an infinite-band stationary $1/f$ process.
+
+For independent stochastic terms, Allan variances add. Finite records and
+random seeds still produce Monte Carlo scatter around the reference curves, so
+the parity tests compare the white-noise level and flicker target within
+tolerances rather than requiring every simulated point to lie exactly on an
+analytic curve. The short-correlation and finite-band fixtures under
+\texttt{profiles/test/} provide compact regression cases.
 
 \section{Extension and verification}
 Alternate implementations satisfy \texttt{ImuModelProtocol} or inherit

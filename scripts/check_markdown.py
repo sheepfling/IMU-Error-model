@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check Markdown links, ownership, and source-document cleanliness."""
+"""Check Markdown links, ownership, and ignored-source cleanliness."""
 
 from __future__ import annotations
 
@@ -11,8 +11,9 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 TOP_LEVEL_ALLOWLIST = {Path("README.md"), Path("CHANGELOG.md")}
-FORBIDDEN = re.compile(r"(?:INBOX/|manual|\.pdf|source document|controlled source)", re.IGNORECASE)
+FORBIDDEN = re.compile(r"(?:INBOX/|research/sources/|manual|\.pdf|source document|controlled source)", re.IGNORECASE)
 LINK = re.compile(r"(?<!!)(?:\[[^\]]*\])\(([^)]+)\)")
+SOURCE_SUFFIXES = {".c", ".cfg", ".cpp", ".h", ".json", ".py", ".tex", ".toml", ".yaml", ".yml"}
 
 
 def markdown_files() -> list[Path]:
@@ -26,6 +27,20 @@ def markdown_files() -> list[Path]:
 def link_target(raw: str) -> str:
     target = raw.strip().strip("<>").split(" ", 1)[0]
     return target
+
+
+def source_files() -> list[Path]:
+    return sorted(
+        path.relative_to(ROOT)
+        for path in ROOT.rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in SOURCE_SUFFIXES
+        and ".git" not in path.parts
+        and ".pytest_cache" not in path.parts
+        and path.relative_to(ROOT) != Path("scripts/check_markdown.py")
+        and path.relative_to(ROOT) != Path(".gitignore")
+        and ".github" not in path.parts
+    )
 
 
 def check() -> list[str]:
@@ -57,9 +72,20 @@ def check() -> list[str]:
                 if not resolved.exists():
                     errors.append(f"{relative}:{line_number}: link target does not exist: {target}")
                     continue
+                ignored = resolved.relative_to(ROOT).as_posix()
+                if ignored.startswith(("INBOX/", "research/sources/", "research/artifacts/")):
+                    errors.append(f"{relative}:{line_number}: link target is gitignored: {target}")
+                    continue
                 resolved_relative = resolved.relative_to(ROOT)
                 if resolved_relative.suffix.lower() == ".md":
                     linked.add(resolved_relative)
+
+    for relative in source_files():
+        path = ROOT / relative
+        text = path.read_text(encoding="utf-8")
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            if FORBIDDEN.search(line):
+                errors.append(f"{relative}:{line_number}: forbidden ignored-source or document reference")
 
     for relative in files:
         if relative not in TOP_LEVEL_ALLOWLIST and relative not in linked:

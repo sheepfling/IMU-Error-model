@@ -76,9 +76,12 @@ python3 scripts/ci.py docs --build
 `scripts/ci.py all` runs linting, coverage, and package distribution builds.
 `scripts/ci.py markdown` checks that Markdown links are relative and resolve,
 that nested Markdown files are linked, and that source-document references do
-not enter the public documentation.
+not enter the public documentation. Markdown and source comments must never
+encode links or paths to gitignored source material; use committed, relative
+references only. The check rejects local source-material paths and provenance
+strings that could disclose excluded documents.
 The GitHub workflow calls this runner on Python 3.11 and 3.12 and uploads the
-wheel, source distribution, and generated documentation PDF as artifacts.
+wheel, source distribution, and generated documentation artifacts.
 
 The `Publish to PyPI` workflow publishes a GitHub Release through PyPI Trusted
 Publishing. Configure the repository's `pypi` environment and trusted

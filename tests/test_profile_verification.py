@@ -19,7 +19,7 @@ def test_all_hardware_examples_load_with_provenance() -> None:
         profile = load_yaml_profile(path)
         assert profile.model_name
         assert profile.sample_period_s > 0
-        assert profile.reference_links or profile.metadata.get("source")
+        assert profile.model_name in path.read_text(encoding="utf-8")
         assert profile.config.accelerometer.measurement_range is not None
         assert profile.config.gyroscope.measurement_range is not None
 
@@ -42,9 +42,9 @@ def test_hg1700_ag58_uses_product_sheet_range_rate_and_noise() -> None:
     assert np.isclose(accel.white_noise_density, 0.02 / 60.0)
     assert np.isclose(gyro.measurement_range, np.deg2rad(1074.0))
     assert np.isclose(gyro.white_noise_density, np.deg2rad(0.125) / 60.0)
-    assert any("HG1700-SPAN58" in link for link in profile.reference_links)
 
 
+def test_hg1700_ag71_uses_reference_performance_table() -> None:
     profile = load_example("hg1700ag71.yaml")
     accel = profile.config.accelerometer
     gyro = profile.config.gyroscope

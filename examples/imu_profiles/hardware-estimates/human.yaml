@@ -1,6 +1,7 @@
 # Human vestibular system as an IMU-like sensor (very approximate).
 # Sources for anchors:
 # - Head rotation peaks ~25 rad/s (voluntary): https://pmc.ncbi.nlm.nih.gov/articles/PMC6444911/
+# - Public human-motion reference
 # - Linear accel direction thresholds ~6.5-8.5 cm/s^2: https://pmc.ncbi.nlm.nih.gov/articles/PMC1182363/
 # - Near-threshold angular velocity ~1 deg/s, discrimination a few deg/s: https://pmc.ncbi.nlm.nih.gov/articles/PMC2934934/ and https://pmc.ncbi.nlm.nih.gov/articles/PMC2939372/
 # - Canal time constant ~3.7-7 s: https://entokey.com/vestibular-physiology/ and https://pmc.ncbi.nlm.nih.gov/articles/PMC10879882/

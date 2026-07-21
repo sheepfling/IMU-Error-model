@@ -29,6 +29,7 @@ model = ImuModel(profile.config)
 back to its datasheet or measurement record.
 
 Included families include HG9900, HG5700, and HG1700 variants (including the
+AG71 reference-backed example), plus ADIS16470,
 ICM-42688-P, SBG PULSE 40, iPhone-like, and human vestibular reference
 profiles.
 

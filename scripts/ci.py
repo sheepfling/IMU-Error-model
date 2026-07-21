@@ -91,6 +91,10 @@ def lint() -> None:
     run("-m", "ruff", "check", "src", "tests", "scripts", "examples")
 
 
+def markdown() -> None:
+    run("scripts/check_markdown.py")
+
+
 def build() -> None:
     # The dev environment already contains the declared build frontend/backend.
     # Avoiding a second isolated pip environment makes local builds work offline.
@@ -120,7 +124,7 @@ def docs(build_pdf: bool) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="task", required=True)
-    for name in ("test", "verify", "coverage", "lint", "build", "allan", "showcase", "analysis", "all"):
+    for name in ("test", "verify", "coverage", "lint", "markdown", "build", "allan", "showcase", "analysis", "all"):
         subparsers.add_parser(name)
     allan_parser = subparsers.choices["allan"]
     allan_parser.add_argument("--duration", type=float, default=120.0, help="all-profile record duration in seconds")
@@ -173,12 +177,15 @@ def main() -> int:
         coverage()
     elif args.task == "lint":
         lint()
+    elif args.task == "markdown":
+        markdown()
     elif args.task == "build":
         build()
     elif args.task == "docs":
         docs(args.build)
     else:
         lint()
+        markdown()
         verify()
         coverage()
         build()

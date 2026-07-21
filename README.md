@@ -44,6 +44,8 @@ created with `save_profile()`. Example profiles are in `profiles/`.
 
 Hardware-oriented best-effort estimates are kept separately under
 [`examples/imu_profiles/hardware-estimates`](examples/imu_profiles/hardware-estimates).
+See the [profile examples guide](examples/imu_profiles/README.md) for loading
+and interpreting those notional estimates.
 They are documentation/examples only and are not package defaults or runtime
 configuration. Every numeric value there is notional, approximate, and
 non-official; even source-anchored values are modeling estimates, not vendor
@@ -72,6 +74,9 @@ python3 scripts/ci.py docs --build
 ```
 
 `scripts/ci.py all` runs linting, coverage, and package distribution builds.
+`scripts/ci.py markdown` checks that Markdown links are relative and resolve,
+that nested Markdown files are linked, and that source-document references do
+not enter the public documentation.
 The GitHub workflow calls this runner on Python 3.11 and 3.12 and uploads the
 wheel, source distribution, and generated documentation PDF as artifacts.
 

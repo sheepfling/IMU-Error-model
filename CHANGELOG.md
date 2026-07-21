@@ -15,3 +15,7 @@ and parametric IMU measurement-error models.
   analysis, and a dead-reckoning demonstration.
 - All hardware-oriented profile values are notional, approximate, and
   non-official examples.
+## 0.1.1
+
+- Scrubbed source-document paths and document-reference comments from public
+  source, examples, and research notes.

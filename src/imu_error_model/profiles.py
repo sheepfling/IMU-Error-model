@@ -77,8 +77,6 @@ def _load_jsonc(text: str) -> object:
 ####
 
 
-
-
 def _load_text(text: str, profile_format: str) -> object:
     """Parse profile text when no filename is available to select a format."""
     if profile_format in {"json", "jsonc"}:
@@ -89,15 +87,11 @@ def _load_text(text: str, profile_format: str) -> object:
 ####
 
 
-
-
 def _read_stream(stream: IO[str] | IO[bytes]) -> str:
     """Read a text or binary stream and normalize it to Unicode text."""
     value = stream.read()
     return value.decode("utf-8") if isinstance(value, bytes) else value
 ####
-
-
 
 
 def _normalize_format(profile_format: str) -> str:
@@ -107,8 +101,6 @@ def _normalize_format(profile_format: str) -> str:
     ####
     return normalized
 ####
-
-
 
 
 def _load_mapping(path: Path) -> dict[str, object]:
@@ -125,14 +117,10 @@ def _load_mapping(path: Path) -> dict[str, object]:
 ####
 
 
-
-
 def _validate_document(data: dict[str, object]) -> ProfileDocument:
     """Validate a metadata-bearing profile through the canonical envelope model."""
     return ProfileDocument.model_validate(data)
 ####
-
-
 
 
 def _config_from_document(document: ProfileDocument) -> ImuConfig:
@@ -142,8 +130,6 @@ def _config_from_document(document: ProfileDocument) -> ImuConfig:
 ####
 
 
-
-
 def _config_from_mapping(data: dict[str, object]) -> ImuConfig:
     """Validate either a config-only mapping or a complete profile document."""
     if {"model_name", "sample_period_s", "metadata"}.issubset(data):
@@ -151,8 +137,6 @@ def _config_from_mapping(data: dict[str, object]) -> ImuConfig:
     ####
     return ImuConfig.model_validate(data)
 ####
-
-
 
 
 class LoadedProfile(BaseModel):
@@ -170,10 +154,39 @@ class LoadedProfile(BaseModel):
         ProfileMetadata,
         Field(description="Validated provenance and classification metadata."),
     ]
-    source_path: Annotated[Path, Field(description="Filesystem path from which the profile was loaded.")]
+    source_path: Annotated[
+        Path,
+        Field(description="Filesystem path or logical packaged-resource identifier from which the profile was loaded."),
+    ]
 ####
 
 
+def _loaded_profile_from_document(document: ProfileDocument, source_path: Path) -> LoadedProfile:
+    """Build a validated loaded-profile object from a canonical document."""
+    return LoadedProfile(
+        config=_config_from_document(document),
+        model_name=document.model_name,
+        sample_period_s=document.sample_period_s,
+        metadata=document.metadata,
+        source_path=source_path,
+    )
+####
+
+
+def load_profile_document_stream(
+        stream: IO[str] | IO[bytes], *, fmt: str = "json", source_path: str | Path = "<stream>"
+) -> LoadedProfile:
+    """Load and validate a metadata-bearing profile from a text or binary stream.
+
+    ``source_path`` is retained for diagnostics and may be a logical identifier
+    when the profile comes from packaged resources rather than the filesystem.
+    """
+    data = _load_text(_read_stream(stream), _normalize_format(fmt))
+    if not isinstance(data, dict):
+        raise ValueError("profile must be a mapping")
+    ####
+    return _loaded_profile_from_document(_validate_document(data), Path(source_path))
+####
 
 
 def load_profile_document(path: str | Path) -> LoadedProfile:
@@ -184,17 +197,8 @@ def load_profile_document(path: str | Path) -> LoadedProfile:
     """
     source_path = Path(path)
     data = _load_mapping(source_path)
-    parsed = _validate_document(data)
-    return LoadedProfile(
-        config=_config_from_document(parsed),
-        model_name=parsed.model_name,
-        sample_period_s=parsed.sample_period_s,
-        metadata=parsed.metadata,
-        source_path=source_path,
-    )
+    return _loaded_profile_from_document(_validate_document(data), source_path)
 ####
-
-
 
 
 def config_from_mapping(data: Mapping[str, object]) -> ImuConfig:
@@ -204,8 +208,6 @@ def config_from_mapping(data: Mapping[str, object]) -> ImuConfig:
     ####
     return _config_from_mapping(dict(data))
 ####
-
-
 
 
 def load_profile_stream(stream: IO[str] | IO[bytes], *, fmt: str = "json") -> ImuConfig:
@@ -223,8 +225,6 @@ def load_profile_stream(stream: IO[str] | IO[bytes], *, fmt: str = "json") -> Im
 ####
 
 
-
-
 def load_profile(path: str | Path) -> ImuConfig:
     """Load a JSON or YAML profile based on its file extension.
 
@@ -238,8 +238,6 @@ def load_profile(path: str | Path) -> ImuConfig:
     data = _load_mapping(source_path)
     return _config_from_mapping(data)
 ####
-
-
 
 
 def save_profile(config: ImuConfig, path: str | Path) -> None:

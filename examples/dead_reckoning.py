@@ -11,7 +11,7 @@ from typing import TypedDict
 from numpy import arange, array, cos, eye, ndarray, random, rad2deg, sin, zeros
 from numpy.linalg import norm
 
-from imu_error_model import ImuModel, load_profile_document
+from imu_error_model import ImuModel, LoadedProfile, list_example_profiles, load_example_profile, load_profile_document
 from imu_error_model.kinematics import rotation_vector_from_matrix
 
 
@@ -28,8 +28,6 @@ class DeadReckoningResult(TypedDict):
 ####
 
 
-
-
 def rotation_matrix(rotation_vector: ndarray) -> ndarray:
     angle = norm(rotation_vector)
     if angle == 0:
@@ -40,8 +38,6 @@ def rotation_matrix(rotation_vector: ndarray) -> ndarray:
     skew = array([[0, -z, y], [z, 0, -x], [-y, x, 0]])
     return eye(3) + sin(angle) * skew + (1 - cos(angle)) * (skew @ skew)
 ####
-
-
 
 
 def truth_trajectory(duration: float, dt: float) -> tuple[ndarray, ndarray, ndarray, ndarray]:
@@ -55,10 +51,8 @@ def truth_trajectory(duration: float, dt: float) -> tuple[ndarray, ndarray, ndar
 ####
 
 
-
-
-def run_case(profile_path: Path, duration: float = 10.0, seed: int = 0) -> DeadReckoningResult:
-    profile = load_profile_document(profile_path)
+def run_case(profile_path: Path | LoadedProfile, duration: float = 10.0, seed: int = 0) -> DeadReckoningResult:
+    profile = profile_path if isinstance(profile_path, LoadedProfile) else load_profile_document(profile_path)
     dt = profile.sample_period_s
     times, truth_position, truth_velocity, truth_orientation = truth_trajectory(duration, dt)
     model = ImuModel(profile.config, rng=random.default_rng(seed))
@@ -80,7 +74,7 @@ def run_case(profile_path: Path, duration: float = 10.0, seed: int = 0) -> DeadR
         delta_v_body = output.delta_v / accel_scale
         delta_theta_body = output.delta_theta / gyro_scale
         estimated_position += (
-            0.5 * (estimated_velocity + estimated_velocity + estimated_orientation @ delta_v_body) * step_dt
+                0.5 * (estimated_velocity + estimated_velocity + estimated_orientation @ delta_v_body) * step_dt
         )
         estimated_velocity += estimated_orientation @ delta_v_body
         estimated_orientation = estimated_orientation @ rotation_matrix(delta_theta_body)
@@ -102,20 +96,21 @@ def run_case(profile_path: Path, duration: float = 10.0, seed: int = 0) -> DeadR
 ####
 
 
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--duration", type=float, default=10.0)
     parser.add_argument("--output", type=Path, default=Path("artifacts/dead_reckoning_summary.csv"))
     args = parser.parse_args()
-    profile_paths = sorted(Path("examples/imu_profiles/hardware-estimates").glob("*.yaml"))
-    rows = [run_case(path, duration=args.duration, seed=index) for index, path in enumerate(profile_paths)]
+    profile_names = list_example_profiles()
+    rows = [
+        run_case(load_example_profile(name), duration=args.duration, seed=index)
+        for index, name in enumerate(profile_names)
+    ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(dict(row) for row in rows)
     ####
     for row in rows:
         print(
@@ -127,7 +122,6 @@ def main() -> int:
     print(f"Wrote {len(rows)} comparisons to {args.output}")
     return 0
 ####
-
 
 
 if __name__ == "__main__":

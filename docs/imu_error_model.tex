@@ -1,81 +1,6 @@
-\begin{filecontents*}{imu_error_model_references.bib}
-@article{allan1966,
-author  = {David W. Allan},
-title   = {Statistics of Atomic Frequency Standards},
-journal = {Proceedings of the IEEE},
-year    = {1966},
-volume  = {54},
-number  = {2},
-pages   = {221--230},
-doi     = {10.1109/PROC.1966.4634}
-}
-
-@techreport{riley2008,
-author      = {William J. Riley and David A. Howe},
-title       = {Handbook of Frequency Stability Analysis},
-institution = {National Institute of Standards and Technology},
-number      = {NIST Special Publication 1065},
-year        = {2008},
-doi         = {10.6028/NIST.SP.1065}
-}
-
-@article{elsheimy2008,
-author  = {Naser El-Sheimy and Haiying Hou and Xiaoji Niu},
-title   = {Analysis and Modeling of Inertial Sensors Using Allan Variance},
-journal = {IEEE Transactions on Instrumentation and Measurement},
-year    = {2008},
-volume  = {57},
-number  = {1},
-pages   = {140--149},
-doi     = {10.1109/TIM.2007.908635}
-}
-
-@techreport{woodman2007,
-author      = {Oliver J. Woodman},
-title       = {An Introduction to Inertial Navigation},
-institution = {University of Cambridge Computer Laboratory},
-number      = {UCAM-CL-TR-696},
-year        = {2007},
-doi         = {10.48456/tr-696}
-}
-
-@article{sola2017,
-author  = {Joan Sol\`a},
-title   = {Quaternion Kinematics for the Error-State Kalman Filter},
-journal = {arXiv preprint arXiv:1711.02508},
-year    = {2017},
-eprint  = {1711.02508},
-archiveprefix = {arXiv}
-}
-
-@book{barfoot2017,
-author    = {Timothy D. Barfoot},
-title     = {State Estimation for Robotics},
-publisher = {Cambridge University Press},
-year      = {2017},
-doi       = {10.1017/9781316671528}
-}
-
-@book{groves2013,
-author    = {Paul D. Groves},
-title     = {Principles of GNSS, Inertial, and Multisensor Integrated Navigation Systems},
-edition   = {2},
-publisher = {Artech House},
-year      = {2013}
-}
-
-@book{titterton2004,
-author    = {David H. Titterton and John L. Weston},
-title     = {Strapdown Inertial Navigation Technology},
-edition   = {2},
-publisher = {The Institution of Electrical Engineers},
-year      = {2004}
-}
-\end{filecontents*}
-
 \documentclass[11pt,oneside,headings=big]{scrreprt}
 
-\input{imu_style.tex}
+\input{imu_style}
 \usepackage{mathtools,bm}
 \usepackage{siunitx}
 \usepackage{listings}
@@ -488,7 +413,7 @@ Protocol-based alternate model implementations & Magnetometer, GNSS, camera, or 
     away from the numerically delicate neighborhoods of \(0\) and \(\pi\). Robust
     implementations use a small-angle series near zero and a diagonal-based branch
     near \(\pi\) rather than evaluating \cref{eq:so3-log} literally
-    \cite{sola2017,barfoot2017}.
+    ~\cite{sola2017,barfoot2017}.
 
 
     \section{Ideal interval increments}
@@ -1234,7 +1159,7 @@ Validate finite inputs and proper rotation matrix\;
     Only averaging times \(\tau=m\Delta t\) with at least two adjacent complete
     blocks are defined. As \(\tau\) grows, \(J\) decreases and statistical
     uncertainty rises. Allan analysis and its interpretation are described in
-    \cite{allan1966,riley2008,elsheimy2008}.
+    ~\cite{allan1966,riley2008,elsheimy2008}.
 
 
     \section{Reference curves}
@@ -1277,8 +1202,8 @@ Validate finite inputs and proper rotation matrix\;
         \centering
         \begin{tikzpicture}
             \begin{loglogaxis}
-                        [
-                        width=0.88\textwidth,
+                [
+                width=0.88\textwidth,
                 height=0.49\textwidth,
                 xmin=0.02,xmax=100,
                 ymin=0.07,ymax=8,
@@ -1290,14 +1215,14 @@ Validate finite inputs and proper rotation matrix\;
                 tick label style={font=\small},
                 label style={font=\small},
                 legend style={at={(0.5,-0.22)},anchor=north,legend columns=3,draw=none,font=\small}
-                    ]
-                    \addplot[ImuBlue,very thick,domain=0.02:100,samples=180] {x^(-0.5)};
-                    \addlegendentry{white rate noise}
-                    \addplot[ImuOrange,very thick,dashed,domain=0.02:100,samples=180] {sqrt(x/3)};
-                    \addlegendentry{rate random walk}
-                    \addplot[ImuTeal,very thick,domain=0.02:100,samples=220]
-                    {sqrt(2/x - (1/x)^2*(3 - 4*exp(-x) + exp(-2*x)))};
-                    \addlegendentry{stationary Gauss--Markov}
+                ]
+                \addplot[ImuBlue,very thick,domain=0.02:100,samples=180] {x^(-0.5)};
+                \addlegendentry{white rate noise}
+                \addplot[ImuOrange,very thick,dashed,domain=0.02:100,samples=180] {sqrt(x/3)};
+                \addlegendentry{rate random walk}
+                \addplot[ImuTeal,very thick,domain=0.02:100,samples=220]
+                {sqrt(2/x - (1/x)^2*(3 - 4*exp(-x) + exp(-2*x)))};
+                \addlegendentry{stationary Gauss--Markov}
             \end{loglogaxis}
         \end{tikzpicture}
         \caption{Normalized Allan-deviation signatures. Absolute levels depend on
@@ -1392,7 +1317,7 @@ Clipping / quantization & Signal- and level-dependent & Can break simple Gaussia
     \end{align}
     where signs and detailed transport terms depend on the chosen navigation-frame
     convention. These relations are analytical context, not computations performed
-    by \pkg{} \cite{titterton2004,groves2013,woodman2007}.
+    by \pkg{}~\cite{titterton2004,groves2013,woodman2007}.
 
 
     \section{Constant-bias approximations}
@@ -1653,6 +1578,13 @@ Temperature coefficient & $\vect c_b$, $\vect c_n$, $\vect c_{\mathrm{sf}}$ & Ve
         \item[\software{ImuModelProtocol}]
         A structural interface for any stateful implementation that accepts truth
         samples and returns IMU increments.
+        \item[\software{CheckpointableImuModelProtocol}]
+        An optional generic structural interface exposing model-defined snapshot and
+        restore operations for implementations that can pause and resume their
+        stochastic state exactly. It does not prescribe JSON, Pydantic, or disk-file serialization.
+        \item[\software{SerializableCheckpointableImuModelProtocol}]
+        An optional refinement that exposes a typed byte codec for a checkpointable
+        model. Its codec may use JSON, MessagePack, CBOR, or another transport format.
         \item[\software{ImuConfig}]
         Top-level configuration, including global output scaling and channel
         configuration.
@@ -1760,6 +1692,50 @@ estimator.propagate(
     \end{itemize}
     Thread safety should not be assumed unless a concrete implementation documents
     its synchronization behavior.
+
+
+    \section{Checkpoint and resume}
+    The built-in \software{ImuModel} supports an explicit pause/resume boundary.
+    \software{snapshot()} returns the versioned Pydantic model
+    \software{ImuModelCheckpoint}; \software{save\_checkpoint(path)} uses the
+    built-in JSON codec to write that envelope as UTF-8, and
+    \software{load\_checkpoint(path)} or \software{from\_checkpoint(checkpoint)}
+    reconstructs a model ready for its next measurement.
+
+    A checkpoint taken between completed \software{measure} calls contains the
+    canonical configuration, NumPy bit-generator class and state, turn-on bias,
+    current Gauss--Markov/random-walk bias, every finite-band flicker component,
+    sampled misalignment, and the previous timestamp, velocity, and orientation.
+    Restoring all of these values is necessary: restoring only a seed would not
+    reproduce a run after the random stream had advanced, and restoring only the
+    latent biases would lose the interval baseline.
+
+    \begin{lstlisting}[style=imuPython,caption={Pause and resume a stochastic model.},label={lst:checkpoint}]
+model.save_checkpoint("run-checkpoint.json")
+
+# The file can be moved to another process or host with the same package contract.
+resumed = ImuModel.load_checkpoint("run-checkpoint.json")
+output = resumed.measure(
+    timestamp=t_next,
+    velocity_without_gravity=velocity_world_next,
+    orientation_world_from_body=rotation_world_from_body_next,
+    temperature_celsius=temperature_next,
+)
+    \end{lstlisting}
+
+    The built-in codec is format-specific and uses JSON rather than a Python
+    pickle. Its byte boundary is suitable for files or wire transport and its
+    payload includes a schema version and model identifier so unsupported data
+    fails explicitly. The generic \software{CheckpointableImuModelProtocol}
+    requires only model-defined snapshot and restore operations; the optional
+    \software{SerializableCheckpointableImuModelProtocol} adds a typed codec
+    for byte transport. A different implementation may use a different checkpoint
+    type and a MessagePack, CBOR, or binary codec. A custom \software{ThermalModel}
+    may carry additional state and therefore must provide its own persistence
+    mechanism before it can participate in an exact checkpoint. File writes are
+    atomic, and \software{save\_checkpoint(..., codec=...)} and
+    \software{load\_checkpoint(..., codec=...)} allow an explicitly selected
+    codec when JSON is not the desired transport representation.
 
 
     \section{Extension points}

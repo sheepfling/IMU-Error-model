@@ -1,19 +1,19 @@
 # Reference links:
 # - Honeywell HG1700 product page:
 # https://aerospace.honeywell.com/us/en/products-and-services/products/navigation-and-sensors/inertial-measurement-units/hg1700-inertial-measurement-unit
-# - Public HG1700-AG60 manufacturer references
+# - Public HG1700-AG59 manufacturer references
 # NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
 # not official manufacturer settings, specifications, certification data, or
-# performance guarantees. References provide provenance, not authority.
+# performance guarantees. The references provide provenance, not authority.
 schema_version: 1
-model_name: HG1700AG60
+model_name: HG1700AG59
 sample_period_s: 0.0016666667
 
 metadata:
   family: hg1700
   vendor: "Honeywell"
   grade: tactical
-  revision: AG60
+  revision: AG59
   source_date: "2026-02-23"
   sources:
     - url: "https://aerospace.honeywell.com/us/en/products-and-services/products/navigation-and-sensors/inertial-measurement-units/hg1700-inertial-measurement-unit"
@@ -26,7 +26,7 @@ metadata:
       archive_urls:
         - "https://web.archive.org/web/*/https://aerospace.honeywell.com/content/dam/aero/en-us/documents/landing-pages/brochures/N61-1619-000-001-HG1700InertialMeasurementUnit-bro.pdf?download=true"
         - "https://archive.is/?run=1&url=https%3A%2F%2Faerospace.honeywell.com%2Fcontent%2Fdam%2Faero%2Fen-us%2Fdocuments%2Flanding-pages%2Fbrochures%2FN61-1619-000-001-HG1700InertialMeasurementUnit-bro.pdf%3Fdownload%3Dtrue"
-  tags: [ baseline,candidate,gyro_technology_rlg,accel_technology_quartz_rba ]
+  tags: [ candidate, gyro_technology_rlg, accel_technology_quartz_rba ]
   active: false
 
 accelerometer:
@@ -34,8 +34,8 @@ accelerometer:
   scale_factor: 0.0
   nonlinear_factor: 0.0
   white_noise_density: 3.302e-4
-  turn_on_bias_std: 0.0196133
-  bias_std: 0.0196133
+  turn_on_bias_std: 0.00980665
+  bias_std: 0.00980665
   bias_correlation_time: 250.0
   apply_clipping: false
   misalignment_std: 0.0
@@ -48,9 +48,9 @@ gyroscope:
   measurement_range: 6.2482787221397
   scale_factor: 0.0
   nonlinear_factor: 0.0
-  white_noise_density: 8.72664625997165e-5
-  turn_on_bias_std: 1.45444104332861e-5
-  bias_std: 1.45444104332861e-5
+  white_noise_density: 5.81776417331443e-5
+  turn_on_bias_std: 9.69627362219072e-6
+  bias_std: 9.69627362219072e-6
   bias_correlation_time: 300.0
   apply_clipping: false
   misalignment_std: 0.0

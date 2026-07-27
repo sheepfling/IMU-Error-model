@@ -10,12 +10,36 @@ from pathlib import Path
 
 DEFAULT_ROOTS = (Path("src"), Path("scripts"), Path("tests"), Path("examples"))
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef)
-SCOPE_NODES = (*FUNCTION_NODES, ast.ClassDef, ast.If)
+REQUIRED_SCOPE_NODES = (
+    *FUNCTION_NODES,
+    ast.ClassDef,
+    ast.If,
+    ast.For,
+    ast.AsyncFor,
+    ast.While,
+    ast.With,
+    ast.AsyncWith,
+    ast.Try,
+    ast.TryStar,
+    ast.Match,
+)
+SCOPE_NODES = REQUIRED_SCOPE_NODES
+
+def _source_location(node: ast.AST) -> tuple[int, int] | None:
+    """Return a node's end line and column when both locations are present."""
+    end_line = getattr(node, "end_lineno", None)
+    column = getattr(node, "col_offset", None)
+    if not isinstance(end_line, int) or not isinstance(column, int):
+        return None
+    ####
+    return end_line, column
+####
 
 def _read_text(path: Path) -> str:
     """Read source text without normalizing platform-specific newlines."""
     with path.open("r", encoding="utf-8", newline="") as stream:
         return stream.read()
+    ####
 ####
 
 
@@ -23,6 +47,7 @@ def _write_text(path: Path, text: str) -> None:
     """Write source text without translating platform-specific newlines."""
     with path.open("w", encoding="utf-8", newline="") as stream:
         stream.write(text)
+    ####
 ####
 
 
@@ -32,26 +57,26 @@ def _indentation(line: str) -> int:
 ####
 
 
-def _scope_marker_is_present(lines: list[str], node: ast.AST) -> bool:
-    """Return whether a scope closes with a marker at its own indentation."""
-    end_line = getattr(node, "end_lineno", None)
-    column = getattr(node, "col_offset", None)
-    if end_line is None or column is None:
-        return False
+def _scope_marker_index(lines: list[str], node: ast.AST) -> int | None:
+    """Return the line index of a scope's marker, if one is correctly placed."""
+    location = _source_location(node)
+    if location is None:
+        return None
     ####
-    for line in lines[end_line:]:
+    end_line, column = location
+    for index, line in enumerate(lines[end_line:], start=end_line):
         if not line.strip():
             continue
         ####
         indentation = _indentation(line)
         if line.strip() == "####" and indentation == column:
-            return True
+            return index
         ####
         if indentation <= column:
-            return False
+            return None
         ####
     ####
-    return False
+    return None
 ####
 
 
@@ -75,34 +100,37 @@ def _parent_nodes(tree: ast.AST) -> dict[int, ast.AST]:
     for parent in ast.walk(tree):
         for child in ast.iter_child_nodes(parent):
             parents[id(child)] = parent
+        ####
     ####
     return parents
 ####
 
 
 def _is_elif_node(
-    node: ast.If,
-    parents: dict[int, ast.AST],
-    lines: list[str],
+        node: ast.If,
+        parents: dict[int, ast.AST],
+        lines: list[str],
 ) -> bool:
     """Return whether an ``if`` node is part of its parent's branch chain."""
     parent = parents.get(id(node))
-    return (
-        isinstance(parent, ast.If)
-        and parent.orelse
-        and parent.orelse[0] is node
-        and lines[node.lineno - 1].lstrip().startswith("elif")
-    )
+    if not isinstance(parent, ast.If) or not parent.orelse:
+        return False
+    ####
+    line_number = getattr(node, "lineno", None)
+    if not isinstance(line_number, int):
+        return False
+    ####
+    return parent.orelse[0] is node and lines[line_number - 1].lstrip().startswith("elif")
 ####
 
 
 def _scope_marker_insert_index(lines: list[str], node: ast.AST) -> int:
     """Return the insertion point after any already-closed child scopes."""
-    end_line = getattr(node, "end_lineno", None)
-    column = getattr(node, "col_offset", None)
-    if end_line is None or column is None:
+    location = _source_location(node)
+    if location is None:
         raise ValueError("scope node has no source location")
     ####
+    end_line, column = location
     index = end_line
     while index < len(lines):
         line = lines[index]
@@ -150,20 +178,22 @@ def _python_files(roots: list[Path]) -> list[Path]:
         elif root.is_dir():
             files.update(root.rglob("*.py"))
         ####
+    ####
     return sorted(files)
 ####
 
 
-def _missing_scope_nodes(path: Path) -> tuple[list[str], list[ast.AST]]:
-    """Return parse diagnostics and scopes missing their markers."""
+def _scope_marker_analysis(path: Path) -> tuple[list[str], list[ast.AST], list[int]]:
+    """Return parse diagnostics, missing scopes, and misplaced marker lines."""
     source = _read_text(path)
     try:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as error:
-        return [f"{path}:{error.lineno}: cannot parse Python: {error.msg}"], []
+        return [f"{path}:{error.lineno}: cannot parse Python: {error.msg}"], [], []
     ####
     lines = source.splitlines()
     missing: list[ast.AST] = []
+    valid_markers: set[int] = set()
     parents = _parent_nodes(tree)
     for node in ast.walk(tree):
         if not isinstance(node, SCOPE_NODES):
@@ -175,45 +205,83 @@ def _missing_scope_nodes(path: Path) -> tuple[list[str], list[ast.AST]]:
         if _is_stub_function(node):
             continue
         ####
-        if not _scope_marker_is_present(lines, node):
+        marker_index = _scope_marker_index(lines, node)
+        if marker_index is None and isinstance(node, REQUIRED_SCOPE_NODES):
             missing.append(node)
+        elif marker_index is not None:
+            valid_markers.add(marker_index)
         ####
     ####
-    return [], missing
+    marker_lines = [index for index, line in enumerate(lines) if line.strip() == "####"]
+    misplaced = [index for index in marker_lines if index not in valid_markers]
+    return [], missing, misplaced
 ####
 
 
 def check_scope_markers(roots: list[Path]) -> list[str]:
-    """Return diagnostics for scopes missing their closing marker."""
+    """Return diagnostics for missing or misplaced closing markers."""
     diagnostics: list[str] = []
     for path in _python_files(roots):
-        parse_diagnostics, missing = _missing_scope_nodes(path)
+        parse_diagnostics, missing, misplaced = _scope_marker_analysis(path)
         diagnostics.extend(parse_diagnostics)
+        entries: list[tuple[int, str]] = []
         for node in missing:
             if isinstance(node, ast.ClassDef):
                 description = f"class {node.name!r}"
             elif isinstance(node, FUNCTION_NODES):
                 description = f"function {node.name!r}"
-            else:
+            elif isinstance(node, ast.If):
                 description = "if/elif/else chain"
+            elif isinstance(node, (ast.For, ast.AsyncFor)):
+                description = "for/else loop"
+            elif isinstance(node, ast.While):
+                description = "while loop"
+            elif isinstance(node, (ast.With, ast.AsyncWith)):
+                description = "with statement"
+            elif isinstance(node, (ast.Try, ast.TryStar)):
+                description = "try/except/else/finally block"
+            elif isinstance(node, ast.Match):
+                description = "match statement"
+            else:
+                description = "compound statement"
             ####
-            diagnostics.append(f"{path}:{node.lineno}: {description} must close with ####")
+            line_number = getattr(node, "lineno", None)
+            if not isinstance(line_number, int):
+                continue
+            ####
+            entries.append((line_number, f"{path}:{line_number}: {description} must close with ####"))
+        ####
+        entries.extend((index + 1, f"{path}:{index + 1}: unexpected #### marker") for index in misplaced)
+        diagnostics.extend(message for _, message in sorted(entries))
     ####
     return diagnostics
 ####
 
 
 def fix_scope_markers(roots: list[Path]) -> list[Path]:
-    """Insert missing markers and return the files that were changed."""
+    """Remove misplaced markers, insert missing markers, and return changed files."""
     changed: list[Path] = []
     for path in _python_files(roots):
         source = _read_text(path)
-        parse_diagnostics, missing = _missing_scope_nodes(path)
+        parse_diagnostics, missing, misplaced = _scope_marker_analysis(path)
         if parse_diagnostics:
             continue
         ####
         lines = source.splitlines(keepends=True)
         newline = "\r\n" if "\r\n" in source else "\n"
+        for index in reversed(misplaced):
+            lines.pop(index)
+        ####
+        removed_markers = bool(misplaced)
+        if removed_markers:
+            updated_source = "".join(lines)
+            _write_text(path, updated_source)
+            parse_diagnostics, missing, _ = _scope_marker_analysis(path)
+            if parse_diagnostics:
+                continue
+            ####
+            lines = updated_source.splitlines(keepends=True)
+        ####
         insertions: dict[int, list[tuple[int, str]]] = {}
         for node in missing:
             column = getattr(node, "col_offset")
@@ -225,7 +293,7 @@ def fix_scope_markers(roots: list[Path]) -> list[Path]:
             lines[index:index] = additions
         ####
         spacing_changed = _normalize_marker_spacing(lines)
-        changed_markers = bool(insertions) or spacing_changed
+        changed_markers = removed_markers or bool(insertions) or spacing_changed
         if not changed_markers:
             continue
         ####
@@ -238,13 +306,13 @@ def fix_scope_markers(roots: list[Path]) -> list[Path]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--fix", action="store_true", help="insert missing scope markers")
+    parser.add_argument("--fix", action="store_true", help="remove misplaced and insert missing scope markers")
     parser.add_argument("paths", nargs="*", type=Path, default=list(DEFAULT_ROOTS))
     args = parser.parse_args()
     if args.fix:
         changed = fix_scope_markers(args.paths)
         for path in changed:
-            print(f"Inserted scope markers: {path}")
+            print(f"Fixed scope markers: {path}")
         ####
     ####
     diagnostics = check_scope_markers(args.paths)

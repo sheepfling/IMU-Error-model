@@ -1,4 +1,5 @@
-from numpy import all as all_values, array, asarray, exp, expm1, full, geomspace, ndarray, random, sqrt, sum, zeros
+from numpy import all as all_values, array, asarray, exp, expm1, full, geomspace, isfinite, ndarray, random, sqrt, sum, \
+    zeros
 
 from .config import AxisConfig, AxisValue
 
@@ -136,6 +137,26 @@ class FlickerBiasProcess:
             return
         ####
         self._states = rng.normal(0.0, self._stds[:, None], size=self._states.shape)
+    ####
+
+    def snapshot(self) -> ndarray:
+        """Return a copy of the finite-band component state."""
+        return self._states.copy()
+    ####
+
+    def restore(self, states: ndarray) -> None:
+        """Restore the finite-band component state and invalidate cached transitions."""
+        values = asarray(states, dtype=float)
+        if values.size == 0 and self._states.shape == (0, 3):
+            values = zeros((0, 3))
+        ####
+        if values.shape != self._states.shape or not bool(all_values(isfinite(values))):
+            raise ValueError("flicker states must be finite and match the configured component shape")
+        ####
+        self._states = values.copy()
+        self._last_dt = None
+        self._last_phi = zeros(0)
+        self._last_innovation_std = zeros(0)
     ####
 
     def step(self, dt: float, rng: random.Generator) -> ndarray:

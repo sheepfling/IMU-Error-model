@@ -21,7 +21,6 @@ class ThermalModel(Protocol):
     """Interface for a temperature model bound to one channel configuration."""
 
     def evaluate(self, temperature_celsius: float) -> ThermalState: ...
-    ####
 ####
 
 class LinearThermalModel:

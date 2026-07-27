@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable
 
 from numpy import ndarray
 
+from .checkpoint_codecs import CheckpointCodecProtocol
 from .signals import ImuOutput
 
+
+CheckpointT = TypeVar("CheckpointT")
 
 @runtime_checkable
 class ImuModelProtocol(Protocol):
@@ -32,4 +35,28 @@ class ImuModelProtocol(Protocol):
     ) -> ImuOutput:
         """Return noisy body-frame increments for the current truth state."""
         ...
+####
+
+
+@runtime_checkable
+class CheckpointableImuModelProtocol(Protocol[CheckpointT]):
+    """Structural interface for models that can pause and resume exactly."""
+
+    def snapshot(self) -> CheckpointT:
+        """Return a complete, validated model-state checkpoint."""
+        ...
+
+    def restore(self, checkpoint: CheckpointT) -> None:
+        """Restore a previously captured checkpoint into this model."""
+        ...
+####
+
+
+@runtime_checkable
+class SerializableCheckpointableImuModelProtocol(
+        CheckpointableImuModelProtocol[CheckpointT], Protocol[CheckpointT]
+):
+    """Checkpoint protocol with an explicitly discoverable byte codec."""
+
+    checkpoint_codec: CheckpointCodecProtocol[CheckpointT]
 ####

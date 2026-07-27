@@ -1,0 +1,47 @@
+schema_version: 1
+model_name: Ideal noiseless IMU
+sample_period_s: 0.01
+
+metadata:
+  family: ideal
+  vendor: imu-error-model
+  grade: deterministic-baseline
+  revision: v0.1
+  source_date: "2026-07-26"
+  tags: [ baseline, noiseless, synthetic ]
+  active: true
+  sources:
+    - url: "https://github.com/sheepfling/IMU-Error-model"
+      date: "2026-07-26"
+
+accelerometer:
+  white_noise_density: 0.0
+  turn_on_bias_std: 0.0
+  bias_std: 0.0
+  flicker_bias_std: 0.0
+  scale_factor: 0.0
+  nonlinear_factor: 0.0
+  misalignment_std: 0.0
+  thermal_bias_coefficient: 0.0
+  thermal_noise_coefficient: 0.0
+  thermal_scale_factor_coefficient: 0.0
+  quantization_step: null
+  measurement_range: null
+  apply_clipping: false
+  output_scale: 1.0
+
+gyroscope:
+  white_noise_density: 0.0
+  turn_on_bias_std: 0.0
+  bias_std: 0.0
+  flicker_bias_std: 0.0
+  scale_factor: 0.0
+  nonlinear_factor: 0.0
+  misalignment_std: 0.0
+  thermal_bias_coefficient: 0.0
+  thermal_noise_coefficient: 0.0
+  thermal_scale_factor_coefficient: 0.0
+  quantization_step: null
+  measurement_range: null
+  apply_clipping: false
+  output_scale: 1.0

@@ -2,7 +2,7 @@
 # - ADIS16470 public manufacturer reference
 # NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
 # not official manufacturer settings, specifications, certification data, or
-# performance guarantees. References provide provenance, not authority.
+# performance guarantees. The references provide provenance, not authority.
 schema_version: 1
 model_name: ADIS16470
 sample_period_s: 0.0005
@@ -26,7 +26,7 @@ accelerometer:
   measurement_range: 392.26599999999996   # m/s^2
   # Error over temperature ±0.1% -> 1000 ppm
   scale_factor: 1000e-6
-  # Nonlinearity up to 1.5% FS at ±40 g -> 15000 ppm
+  # Nonlinearity up to 1.5% FS at ±40 g -> 15,000 ppm
   nonlinear_factor: 15000e-6
   # Allan-curve anchor: VRW 0.037 m/s/sqrt(Hr) -> 0.000616667 m/s^2/sqrt(Hz).
   # The datasheet also lists 100 ug/sqrt(Hz); this profile selects the VRW

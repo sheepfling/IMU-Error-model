@@ -5,7 +5,7 @@ The package receives truth orientation and truth velocity excluding gravity;
 it returns imperfect accelerometer `delta_v` and gyroscope `delta_theta` over
 each sample interval.
 
-Install the initial release with:
+Install the package with:
 
 ```bash
 python -m pip install imu-error-model
@@ -51,30 +51,74 @@ sampled interval as `start_time` and `end_time`; `dt` is derived from those
 timestamps. The derived `acceleration` and `angular_rate` properties are also
 body-frame quantities.
 
+## Checkpointing and resume
+
+`ImuModel` can pause and resume a stochastic run without changing the next
+sample. `snapshot()` returns a validated `ImuModelCheckpoint` containing the
+configuration, NumPy generator state, reset-level errors, persistent bias and
+flicker states, misalignment, and the previous truth sample. Use
+`save_checkpoint(path)` for an indented JSON file, or restore in memory with
+`ImuModel.from_checkpoint(checkpoint)`:
+
+```python
+model.save_checkpoint("run-checkpoint.json")
+resumed = ImuModel.load_checkpoint("run-checkpoint.json")
+```
+
+The checkpoint is taken between completed `measure()` calls and resumes the
+same model implementation. `ImuModel` exposes a format-specific
+`checkpoint_codec` whose byte boundary can be used for wire transport:
+
+```python
+payload = model.checkpoint_codec.encode(model.snapshot())
+checkpoint = model.checkpoint_codec.decode(payload)
+resumed = ImuModel.from_checkpoint(checkpoint)
+```
+
+The built-in codec uses validated UTF-8 JSON rather than pickle, with an
+explicit schema version and model identifier. The generic
+`CheckpointableImuModelProtocol` does not require JSON, Pydantic, or disk I/O;
+another model can use a different checkpoint type and codec. Models that expose
+the codec through `SerializableCheckpointableImuModelProtocol` provide a typed
+byte-transport capability. The built-in checkpoint path supports
+`LinearThermalModel`; custom thermal models need their own persistence contract.
+Checkpoint files are written atomically. `save_checkpoint(..., codec=custom_codec)`
+and `load_checkpoint(..., codec=custom_codec)` can use another typed byte codec
+that produces and consumes the same `ImuModelCheckpoint` state.
+Consumers that only need measurement can continue to depend on
+`ImuModelProtocol`.
+
 JSON profiles can be loaded with `load_profile()` or created with
 `save_profile()`. The same `load_profile()` helper also loads JSONC, YAML, and YML
 profiles based on their extension, returning a validated `ImuConfig` in all
 cases. Use `load_profile_document()` when profile provenance metadata is needed.
 Test-only JSON profile fixtures are in `tests/profiles/`.
 
-Hardware-oriented best-effort estimates are kept separately under
-[`examples/imu_profiles/hardware-estimates`](examples/imu_profiles/hardware-estimates).
-See the [profile examples guide](examples/imu_profiles/README.md) for loading
-and interpreting those notional estimates.
-They are documentation/examples only and are not package defaults or runtime
-configuration. Every numeric value there is a notional, approximate estimate
+Hardware-oriented best-effort estimates are bundled with the wheel as versioned
+package resources. Use `list_example_profiles()` and `load_example_profile()`;
+see the [profile examples guide](examples/imu_profiles/README.md) for loading
+and interpreting those notional estimates. They are documentation/examples only
+and are not package defaults or runtime configuration. Every numeric value is a notional, approximate estimate
 derived from public datasheets or other cited source material; none is
 authoritative. These profiles are not vendor specifications, certification
 results, or performance guarantees. The
-`load_profile_document()` adapter maps their profile documents into the current
-model while retaining metadata, sample period, source
-path, and structured source metadata.
+`load_example_profile()` maps their profile documents into the current model
+while retaining metadata, sample period, a logical package-resource identifier,
+and structured source metadata.
+Use `list_example_profile_categories()` to discover categories and
+`list_example_profiles(None)` to list every packaged profile using fully
+qualified, directly loadable names. The default `list_example_profiles()` call
+continues to list hardware estimates.
 Each hardware profile also stores structured provenance in
 `metadata.sources`, with a public URL and the date on which that source was
 reviewed. `load_profile_document()` returns this metadata as typed
 `ProfileMetadata` and `ProfileSource` models. These dates are provenance review
 dates, not asserted publication dates. The links identify the evidence used to choose approximate parameters;
 they do not turn the profiles into vendor specifications or certified models.
+
+For deterministic tests and demonstrations, `load_noiseless_profile()` returns
+the packaged zero-error baseline. It is intentionally separate from the
+hardware-estimate profiles.
 
 The built-in model supports independent white noise, correlated 3-axis noise
 covariance, turn-on bias, random-walk/Gauss–Markov bias, a finite-band
@@ -141,6 +185,7 @@ python3 scripts/ci.py lint
 python3 scripts/ci.py format
 python3 scripts/ci.py typecheck
 python3 scripts/ci.py build
+python3 scripts/ci.py package
 python3 scripts/ci.py docs --build
 ```
 
@@ -156,8 +201,18 @@ The helper assumes the development dependencies and a local LaTeX installation
 (`latexmk` or `pdflatex`) are available. Outputs are written under
 `docs/artifacts/`.
 
+Release versions are derived from Git tags by `setuptools-scm`. A release tag
+such as `v0.1.3` supplies the package version; untagged development builds get
+an automatically derived development version.
+
+`scripts/ci.py package` builds a wheel in a temporary directory, verifies that
+all committed package data is present in the wheel, installs it into an isolated
+target without the source tree on `PYTHONPATH`, and runs the packaged-profile
+pytest suite, including the packaged-profile smoke test. `scripts/ci.py all`
+includes this check after the regular distribution build.
 `scripts/ci.py all` runs Ruff linting, Pyright type checking, Markdown checks,
-regression tests, coverage, and package distribution builds.
+regression tests, coverage, distribution builds, and the isolated wheel smoke
+test.
 `scripts/ci.py format` is the canonical auto-fix command: it runs Ruff's
 autofixes and formatter, then inserts the repository's required `####` scope
 markers. Ruff has no native extension point for project-specific marker rules,

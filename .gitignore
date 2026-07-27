@@ -14,7 +14,6 @@ coverage.xml
 .coverage
 htmlcov/
 .ruff_cache/
-dist/
 docs/artifacts/
 artifacts/
 
@@ -24,3 +23,10 @@ research/sources/
 research/artifacts/
 
 .idea/
+
+# Temproary
+tmp/
+temp/
+.tmp/
+.temp/
+archive/

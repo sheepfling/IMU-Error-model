@@ -5,20 +5,43 @@ from __future__ import annotations
 
 import argparse
 import os
+from shlex import join as shell_join
 import shutil
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 from pathlib import Path
+from zipfile import ZipFile
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 def run(*args: str) -> None:
     command = [sys.executable, *args]
-    print("+", " ".join(command), flush=True)
+    print("+", shell_join(command), flush=True)
     environment = os.environ.copy()
     source_path = str(ROOT / "src")
     environment["PYTHONPATH"] = source_path + os.pathsep + environment.get("PYTHONPATH", "")
+    subprocess.run(command, cwd=ROOT, check=True, env=environment)
+####
+
+def run_isolated(
+        *args: str,
+        pythonpath: Path | None = None,
+        extra_environment: dict[str, str] | None = None,
+) -> None:
+    """Run a command without the repository source tree on its import path."""
+    command = [sys.executable, *args]
+    print("+", shell_join(command), flush=True)
+    environment = os.environ.copy()
+    if pythonpath is None:
+        environment.pop("PYTHONPATH", None)
+    else:
+        environment["PYTHONPATH"] = str(pythonpath)
+    ####
+    if extra_environment is not None:
+        environment.update(extra_environment)
+    ####
     subprocess.run(command, cwd=ROOT, check=True, env=environment)
 ####
 
@@ -65,7 +88,7 @@ def analysis(
         reconstruction_duration: float,
         temperature_points: int,
 ) -> None:
-    """Regenerate the complete analysis and showcase artifact bundle."""
+    """Regenerate the complete analysis and showcase artifacts."""
     allan(duration, points)
     showcase(duration, reconstruction_duration, temperature_points)
 ####
@@ -100,6 +123,64 @@ def build() -> None:
     run("-m", "build", "--no-isolation", "--sdist", "--wheel")
 ####
 
+def package_smoke() -> None:
+    """Build a wheel and test it from an isolated installation target."""
+    with TemporaryDirectory(prefix="imu-error-model-package-") as temporary:
+        temporary_root = Path(temporary)
+        wheel_directory = temporary_root / "wheel"
+        wheel_directory.mkdir()
+        run("-m", "build", "--no-isolation", "--wheel", "--outdir", str(wheel_directory))
+        wheels = sorted(wheel_directory.glob("*.whl"))
+        if len(wheels) != 1:
+            raise RuntimeError(f"expected exactly one wheel, found {len(wheels)}")
+        ####
+        wheel = wheels[0]
+        package_root = ROOT / "src"
+        expected_package_files = sorted(
+            path.relative_to(package_root).as_posix()
+            for path in (package_root / "imu_error_model").rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+        )
+        with ZipFile(wheel) as archive:
+            wheel_files = set(archive.namelist())
+        ####
+        expected_files = set(expected_package_files)
+        missing = sorted(path for path in expected_files if path not in wheel_files)
+        if missing:
+            raise RuntimeError(f"wheel is missing package data: {', '.join(missing)}")
+        ####
+        unexpected = sorted(
+            path for path in wheel_files
+            if path.startswith("imu_error_model/") and path not in expected_files
+        )
+        if unexpected:
+            raise RuntimeError(f"wheel contains unexpected package files: {', '.join(unexpected)}")
+        ####
+        install_directory = temporary_root / "install"
+        install_directory.mkdir()
+        run_isolated(
+            "-m",
+            "pip",
+            "install",
+            "--no-deps",
+            "--target",
+            str(install_directory),
+            str(wheel),
+        )
+        run_isolated(
+            "-m",
+            "pytest",
+            "-q",
+            "-o",
+            "pythonpath=",
+            str(ROOT / "tests"),
+            pythonpath=install_directory,
+            extra_environment={"IMU_ERROR_MODEL_EXPECTED_PACKAGE_ROOT": str(install_directory)},
+        )
+    ####
+####
+
+
 def docs(build_pdf: bool) -> None:
     sources = [
         ROOT / "docs" / "imu_error_model.tex",
@@ -125,6 +206,9 @@ def docs(build_pdf: bool) -> None:
         # Compile from the source directory so sibling inputs such as the
         # shared style fragment and bibliography resolve for direct users too.
         source_directory = source.parent
+        for bibliography in source_directory.glob("*.bib"):
+            shutil.copy2(bibliography, output / bibliography.name)
+        ####
         if Path(latex).name == "latexmk":
             command = [latex, "-pdf", "-interaction=nonstopmode", "-halt-on-error", "-outdir=" + str(output),
                        source.name]
@@ -132,7 +216,7 @@ def docs(build_pdf: bool) -> None:
             command = [latex, "-interaction=nonstopmode", "-halt-on-error", "-output-directory=" + str(output),
                        source.name]
         ####
-        print("+", " ".join(command), flush=True)
+        print("+", shell_join(command), flush=True)
         subprocess.run(command, cwd=source_directory, check=True)
     ####
 ####
@@ -140,7 +224,7 @@ def docs(build_pdf: bool) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="task", required=True)
-    for name in ("test", "verify", "coverage", "lint", "format", "markdown", "typecheck", "build", "allan", "showcase",
+    for name in ("test", "verify", "coverage", "lint", "format", "markdown", "typecheck", "build", "package", "allan", "showcase",
                  "analysis", "all"):
         subparsers.add_parser(name)
     ####
@@ -203,6 +287,8 @@ def main() -> int:
         typecheck()
     elif args.task == "build":
         build()
+    elif args.task == "package":
+        package_smoke()
     elif args.task == "docs":
         docs(args.build)
     else:
@@ -212,6 +298,7 @@ def main() -> int:
         verify()
         coverage()
         build()
+        package_smoke()
     ####
     return 0
 ####

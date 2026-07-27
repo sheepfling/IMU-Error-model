@@ -1,7 +1,7 @@
+import pytest
 from numpy import allclose, array, cos, diag, eye, ones, pi, sin, testing, zeros
 from numpy.linalg import norm
 from numpy.random import default_rng
-import pytest
 
 from imu_error_model import AxisConfig, ImuConfig, ImuModel
 from imu_error_model.runtime import compile_axis_config
@@ -42,10 +42,12 @@ def test_turn_on_bias_is_fixed_while_in_run_bias_evolves() -> None:
     for timestamp in (0.0, 0.1, 0.2, 0.3):
         with_turn_on.measure(timestamp, zeros(3), eye(3))
         without_turn_on.measure(timestamp, zeros(3), eye(3))
+    ####
     for timestamp in (0.4, 0.5, 0.6):
         output_with = with_turn_on.measure(timestamp, zeros(3), eye(3))
         output_without = without_turn_on.measure(timestamp, zeros(3), eye(3))
         testing.assert_allclose(output_with.acceleration - output_without.acceleration, expected_turn_on_bias)
+    ####
 ####
 
 def test_random_walk_bias_starts_at_zero_and_grows_from_process_noise() -> None:
@@ -96,6 +98,7 @@ def test_compiled_axis_parameters_are_cached_and_read_only() -> None:
     assert not quantization_step.flags.writeable
     with pytest.raises(ValueError):
         first._accel_runtime.scale_factor[0] = 9.0
+    ####
 ####
 
 def test_anisotropic_misalignment_covariance_is_supported() -> None:
@@ -116,6 +119,7 @@ def test_invalid_dt() -> None:
         model = ImuModel()
         model.measure(0, zeros(3), eye(3))
         model.measure(0, zeros(3), eye(3))
+    ####
 ####
 
 def test_rotation_delta_is_reported_in_start_body_frame() -> None:

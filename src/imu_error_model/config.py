@@ -14,7 +14,6 @@ Covariance3 = tuple[
     tuple[float, float, float],
 ]
 
-
 class AxisConfig(BaseModel):
     """Noise and deterministic error parameters for one 3-axis channel."""
 
@@ -183,7 +182,6 @@ class AxisConfig(BaseModel):
         return (float(values[0]), float(values[1]), float(values[2]))
     ####
 
-
     @field_validator("thermal_bias_coefficient", "thermal_noise_coefficient", "thermal_scale_factor_coefficient")
     @classmethod
     def finite_thermal_coefficient(cls, value: AxisValue) -> AxisValue:
@@ -194,7 +192,6 @@ class AxisConfig(BaseModel):
         return value
     ####
 
-
     @field_validator("output_scale")
     @classmethod
     def finite_output_scale(cls, value: float) -> float:
@@ -204,7 +201,6 @@ class AxisConfig(BaseModel):
         return value
     ####
 
-
     @field_validator("misalignment_covariance")
     @classmethod
     def validate_misalignment_covariance(cls, value: Covariance3 | None) -> Covariance3 | None:
@@ -213,9 +209,9 @@ class AxisConfig(BaseModel):
         ####
         covariance = asarray(value, dtype=float)
         if (
-            covariance.shape != (3, 3)
-            or not bool(all_values(isfinite(covariance)))
-            or not allclose(covariance, covariance.T)
+                covariance.shape != (3, 3)
+                or not bool(all_values(isfinite(covariance)))
+                or not allclose(covariance, covariance.T)
         ):
             raise ValueError("misalignment_covariance must be a symmetric 3x3 matrix")
         ####
@@ -241,7 +237,6 @@ class AxisConfig(BaseModel):
         )
     ####
 
-
     @model_validator(mode="after")
     def validate_relationships(self) -> Self:
         if self.flicker_bias_std > 0:
@@ -258,9 +253,9 @@ class AxisConfig(BaseModel):
         if self.noise_covariance is not None:
             covariance = asarray(self.noise_covariance, dtype=float)
             if (
-                covariance.shape != (3, 3)
-                or not bool(all_values(isfinite(covariance)))
-                or not allclose(covariance, covariance.T)
+                    covariance.shape != (3, 3)
+                    or not bool(all_values(isfinite(covariance)))
+                    or not allclose(covariance, covariance.T)
             ):
                 raise ValueError("noise_covariance must be a symmetric 3x3 matrix")
             ####
@@ -298,8 +293,6 @@ class ImuConfig(BaseModel):
 ####
 
 
-
-
 class ProfileSource(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -310,8 +303,6 @@ class ProfileSource(BaseModel):
         Field(description="Optional archive.org, archive.is, or other backup URLs for this source."),
     ] = ()
 ####
-
-
 
 
 class ProfileMetadata(BaseModel):
@@ -329,8 +320,6 @@ class ProfileMetadata(BaseModel):
     tags: Annotated[tuple[str, ...], Field(min_length=1, description="Searchable classification tags for the profile.")]
     active: Annotated[bool, Field(description="Whether this profile is an active project baseline.")]
 ####
-
-
 
 
 class ProfileDocument(BaseModel):

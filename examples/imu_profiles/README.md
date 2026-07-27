@@ -1,9 +1,13 @@
 # Example IMU profiles
 
-These files are illustrative, best-effort estimates for representative
+These packaged resources are illustrative, best-effort estimates for representative
 hardware and biological reference systems. They are documentation and example
 inputs only: they are not package defaults, vendor configurations,
 certification results, procurement specifications, or safety models.
+
+The profiles are shipped inside the wheel under
+`imu_error_model.data.example_profiles`, so installed users can access the same
+versioned resources without assuming a repository checkout or filesystem layout.
 
 Every numeric value is a notional and approximate estimate derived from
 datasheets or other published sources; none is authoritative. The `baseline`
@@ -37,18 +41,46 @@ assumptions but are not parsed as provenance.
 
 ## Loading a profile
 
-`load_profile()` selects JSON, JSONC, YAML, or YML from the file extension and
-returns a validated `ImuConfig`:
+Use the packaged-profile helpers when you want one of the bundled examples:
 
 ```python
-from imu_error_model import ImuModel, load_profile
+from imu_error_model import (
+    ImuModel,
+    list_example_profile_categories,
+    list_example_profiles,
+    load_example_profile,
+)
 
-config = load_profile("examples/imu_profiles/hardware-estimates/hg9900.yaml")
-model = ImuModel(config)
+print(list_example_profile_categories())
+print(list_example_profiles(None))  # category/profile.yaml paths
+profile = load_example_profile("hg9900")
+model = ImuModel(profile.config)
 ```
 
-Use `load_profile_document()` when provenance is needed. It additionally preserves
-the model name, sample period, metadata, and source path.
+`load_example_profile()` accepts an exact packaged path, a filename, or an
+unambiguous short name with or without its extension. If two categories contain
+the same short name, it raises an ambiguity error; pass `category=` to select
+one deliberately. It returns the validated `LoadedProfile`, including the model
+name, sample period, typed metadata, and logical package-resource source
+identifier. Use `load_profile()` or `load_profile_document()` for user-supplied
+filesystem paths.
+
+`list_example_profile_categories()` lists available categories. The default
+`list_example_profiles()` call lists hardware estimates; passing a category lists
+that category, while `list_example_profiles(None)` returns fully qualified names
+for every packaged profile. Every name returned by the all-category form can be
+passed directly to `load_example_profile()`.
+
+For a deterministic zero-error baseline, use:
+
+```python
+from imu_error_model import ImuModel, load_noiseless_profile
+
+model = ImuModel(load_noiseless_profile().config)
+```
+
+The noiseless profile is kept in the separate `baselines` category and is not
+included in the hardware-estimate listing.
 
 Included examples cover Honeywell HG1700/HG5700/HG9900 variants, ADIS16470,
 ICM-42688-P, SBG Pulse-40, an iPhone-like consumer-MEMS benchmark, and a

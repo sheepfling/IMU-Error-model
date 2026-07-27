@@ -12,7 +12,14 @@ from pathlib import Path
 import matplotlib
 from numpy import asarray, diff, eye, geomspace, mean, ndarray, random, sqrt, unique, zeros
 
-from imu_error_model import ImuModel, load_profile, load_profile_document
+from imu_error_model import (
+    ImuModel,
+    LoadedProfile,
+    list_example_profiles,
+    load_example_profile,
+    load_profile,
+    load_profile_document,
+)
 
 
 matplotlib.use("Agg")
@@ -20,7 +27,7 @@ import matplotlib.pyplot as plt
 
 
 def allan_deviation(
-    samples: ndarray, sample_period: float, cluster_sizes: ndarray | None = None
+        samples: ndarray, sample_period: float, cluster_sizes: ndarray | None = None
 ) -> tuple[ndarray, ndarray]:
     """Compute non-overlapping Allan deviation for a scalar rate sequence."""
     samples = asarray(samples, dtype=float)
@@ -52,10 +59,8 @@ def allan_deviation(
 ####
 
 
-
-
 def cluster_sizes_for_scale(
-    sample_period: float, duration: float, minimum_tau: float | None, maximum_tau: float | None, points: int
+        sample_period: float, duration: float, minimum_tau: float | None, maximum_tau: float | None, points: int
 ) -> ndarray:
     if points < 2:
         raise ValueError("points must be at least two")
@@ -69,12 +74,19 @@ def cluster_sizes_for_scale(
 ####
 
 
-
-
 def collect_profile_rates(
-    path: Path, duration: float, seed: int
+        path: Path | LoadedProfile, duration: float, seed: int
 ) -> tuple[dict[str, str], ndarray, ndarray, float, dict[str, dict[str, float | None]]]:
-    if path.suffix.lower() == ".json":
+    if isinstance(path, LoadedProfile):
+        profile = path
+        config = profile.config
+        dt = profile.sample_period_s
+        identity = {
+            "model_name": profile.model_name,
+            "family": profile.metadata.family,
+            "grade": profile.metadata.grade,
+        }
+    elif path.suffix.lower() == ".json":
         payload = json.loads(path.read_text(encoding="utf-8"))
         config = load_profile(path)
         dt = float(payload.get("sample_period_s", 0.01))
@@ -102,8 +114,8 @@ def collect_profile_rates(
     for index in range(count + 1):
         output = model.measure(index * dt, zeros(3), eye(3))
         if output.dt:
-            accelerometer.append(float((output.delta_v / output.dt / accel_scale)[0]))
-            gyroscope.append(float((output.delta_theta / output.dt / gyro_scale)[0]))
+            accelerometer.append(float(output.delta_v[0]) / output.dt / accel_scale)
+            gyroscope.append(float(output.delta_theta[0]) / output.dt / gyro_scale)
         ####
     ####
     parameters = {
@@ -120,14 +132,11 @@ def collect_profile_rates(
 ####
 
 
-
-
 def write_charts(rows: list[dict[str, object]], output_dir: Path) -> None:
     os.environ.setdefault("MPLCONFIGDIR", str(output_dir / ".matplotlib"))
-    ####
     for sensor, label, unit in (
-        ("accelerometer", "Accelerometer Allan deviation", "m/s²"),
-        ("gyroscope", "Gyroscope Allan deviation", "rad/s"),
+            ("accelerometer", "Accelerometer Allan deviation", "m/s²"),
+            ("gyroscope", "Gyroscope Allan deviation", "rad/s"),
     ):
         figure, axis = plt.subplots(figsize=(12, 7))
         series: dict[str, list[dict[str, object]]] = {}
@@ -158,8 +167,6 @@ def write_charts(rows: list[dict[str, object]], output_dir: Path) -> None:
 ####
 
 
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--duration", type=float, default=120.0, help="noise record duration in seconds")
@@ -176,8 +183,9 @@ def main() -> int:
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, object]] = []
-    profile_paths = sorted(Path("examples/imu_profiles/hardware-estimates").glob("*.yaml")) + args.profile
-    for index, path in enumerate(profile_paths):
+    profile_sources: list[Path | LoadedProfile] = [load_example_profile(name) for name in list_example_profiles()]
+    profile_sources.extend(args.profile)
+    for index, path in enumerate(profile_sources):
         identity, acceleration, gyro, dt, parameters = collect_profile_rates(path, args.duration, index)
         clusters = cluster_sizes_for_scale(dt, args.duration, args.tau_min_s, args.tau_max_s, args.points)
         for sensor, values in (("accelerometer", acceleration), ("gyroscope", gyro)):
@@ -224,7 +232,6 @@ def main() -> int:
     print(f"Wrote {len(rows)} Allan-deviation points to {csv_path}")
     return 0
 ####
-
 
 
 if __name__ == "__main__":

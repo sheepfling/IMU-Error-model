@@ -1,6 +1,16 @@
-from numpy import all, array, asarray, cos, eye, isfinite, ndarray, random, sin, zeros
+from __future__ import annotations
+
+from copy import deepcopy
+from os import fsync, replace
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Any, ClassVar, TypeGuard, cast
+
+from numpy import all, array, asarray, cos, eye, isfinite, ndarray, random, sin, uint64, zeros
 from numpy.linalg import norm
 
+from .checkpoint import ImuModelCheckpoint, JsonValue, Matrix3, RngBitGeneratorName, Vector3
+from .checkpoint_codecs import CheckpointCodecProtocol, PydanticJsonCheckpointCodec
 from .config import ImuConfig
 from .distortions import apply_distortions, clip, quantize
 from .kinematics import rotation_vector_from_matrix, validate_orientation
@@ -10,6 +20,152 @@ from .signals import ImuOutput
 from .thermal import LinearThermalModel, ThermalModel, ThermalState
 
 
+def _vector3_tuple(value: ndarray) -> Vector3:
+    values = asarray(value, dtype=float)
+    if values.shape != (3,) or not all(isfinite(values)):
+        raise ValueError("checkpoint state must be a finite vector with shape (3,)")
+    ####
+    return float(values[0]), float(values[1]), float(values[2])
+####
+
+
+def _matrix3_tuple(value: ndarray) -> Matrix3:
+    values = asarray(value, dtype=float)
+    if values.shape != (3, 3) or not all(isfinite(values)):
+        raise ValueError("checkpoint state must be a finite matrix with shape (3, 3)")
+    ####
+    return _vector3_tuple(values[0]), _vector3_tuple(values[1]), _vector3_tuple(values[2])
+####
+
+
+def _flicker_state_tuple(value: ndarray) -> tuple[tuple[float, float, float], ...]:
+    values = asarray(value, dtype=float)
+    if values.ndim != 2 or values.shape[1] != 3 or not all(isfinite(values)):
+        raise ValueError("checkpoint flicker state must be finite with shape (n, 3)")
+    ####
+    return tuple(_vector3_tuple(row) for row in values)
+####
+
+
+def _array_vector3(value: tuple[float, float, float]) -> ndarray:
+    values = asarray(value, dtype=float)
+    if values.shape != (3,) or not all(isfinite(values)):
+        raise ValueError("checkpoint state must be a finite vector with shape (3,)")
+    ####
+    return values.copy()
+####
+
+
+def _array_matrix3(value: tuple[tuple[float, float, float], ...]) -> ndarray:
+    values = asarray(value, dtype=float)
+    if values.shape != (3, 3) or not all(isfinite(values)):
+        raise ValueError("checkpoint state must be a finite matrix with shape (3, 3)")
+    ####
+    return values.copy()
+####
+
+
+def _array_flicker_states(value: tuple[tuple[float, float, float], ...], expected_shape: tuple[int, int]) -> ndarray:
+    values = asarray(value, dtype=float)
+    if values.size == 0 and expected_shape == (0, 3):
+        values = zeros((0, 3))
+    ####
+    if values.shape != expected_shape or not all(isfinite(values)):
+        raise ValueError("checkpoint flicker state has the wrong configured shape")
+    ####
+    return values.copy()
+####
+
+
+def _checkpoint_rng(checkpoint: ImuModelCheckpoint) -> random.Generator:
+    if checkpoint.rng_bit_generator == "PCG64":
+        bit_generator = random.PCG64()
+    elif checkpoint.rng_bit_generator == "PCG64DXSM":
+        bit_generator = random.PCG64DXSM()
+    elif checkpoint.rng_bit_generator == "Philox":
+        bit_generator = random.Philox()
+    elif checkpoint.rng_bit_generator == "SFC64":
+        bit_generator = random.SFC64()
+    elif checkpoint.rng_bit_generator == "MT19937":
+        bit_generator = random.MT19937()
+    else:
+        raise ValueError(
+            f"unsupported checkpoint bit generator: {checkpoint.rng_bit_generator!r}"
+        )
+    ####
+    try:
+        cast(Any, bit_generator).state = _restore_json_rng_state(checkpoint.rng_state)
+    except (TypeError, ValueError) as error:
+        raise ValueError("checkpoint contains an invalid NumPy RNG state") from error
+    ####
+    return random.Generator(bit_generator)
+####
+
+
+def _json_compatible(value: Any) -> JsonValue:
+    if isinstance(value, ndarray):
+        return _json_compatible(value.tolist())
+    ####
+    if isinstance(value, dict):
+        return {str(key): _json_compatible(item) for key, item in value.items()}
+    ####
+    if isinstance(value, (list, tuple)):
+        return [_json_compatible(item) for item in value]
+    ####
+    if hasattr(value, "item"):
+        return _json_compatible(value.item())
+    ####
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    ####
+    raise TypeError(f"checkpoint state contains a non-JSON value: {type(value).__name__}")
+####
+
+
+def _restore_json_rng_state(value: JsonValue) -> Any:
+    if isinstance(value, dict):
+        return {key: _restore_json_rng_state(item) for key, item in value.items()}
+    ####
+    if isinstance(value, list):
+        return asarray([_restore_json_rng_state(item) for item in value], dtype=uint64)
+    ####
+    return value
+####
+
+
+def _is_supported_bit_generator(value: str) -> TypeGuard[RngBitGeneratorName]:
+    """Return whether a NumPy bit-generator name is checkpoint-compatible."""
+    return value in {"PCG64", "PCG64DXSM", "Philox", "SFC64", "MT19937"}
+####
+
+
+def _atomic_write_bytes(destination: Path, payload: bytes) -> None:
+    temporary_path: Path | None = None
+    try:
+        with NamedTemporaryFile(
+                mode="wb",
+                dir=destination.parent,
+                prefix=f".{destination.name}.",
+                suffix=".tmp",
+                delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            temporary.write(payload)
+            temporary.flush()
+            fsync(temporary.fileno())
+        ####
+        if temporary_path is None:
+            raise RuntimeError("temporary checkpoint file was not created")
+        ####
+        replace(temporary_path, destination)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
+        ####
+    ####
+####
+
+
 class ImuModel:
     """Transform truth states into imperfect accelerometer and gyro increments.
 
@@ -17,8 +173,14 @@ class ImuModel:
     expressed in the body axes at the beginning of each sampled interval.
     """
 
+    _default_checkpoint_codec: ClassVar[CheckpointCodecProtocol[ImuModelCheckpoint]] = PydanticJsonCheckpointCodec(
+        ImuModelCheckpoint
+    )
+    checkpoint_codec: CheckpointCodecProtocol[ImuModelCheckpoint]
+
     def __init__(self, config: ImuConfig | None = None, rng: random.Generator | None = None,
                  thermal_model: ThermalModel | None = None):
+        self.checkpoint_codec = self._default_checkpoint_codec
         self.config = config or ImuConfig()
         self.rng = rng or random.default_rng()
         self._accel_runtime: CompiledAxisConfig = compile_axis_config(self.config.accelerometer)
@@ -72,6 +234,136 @@ class ImuModel:
         self._previous_timestamp = None
         self._previous_velocity = None
         self._previous_orientation = None
+    ####
+
+    @classmethod
+    def from_checkpoint(cls, checkpoint: ImuModelCheckpoint) -> ImuModel:
+        """Construct a model whose next sample resumes a saved checkpoint."""
+        if checkpoint.model_type != "imu_error_model.ImuModel":
+            raise ValueError(f"unsupported checkpoint model type: {checkpoint.model_type!r}")
+        ####
+        model = cls(config=checkpoint.config, rng=_checkpoint_rng(checkpoint))
+        model.restore(checkpoint)
+        return model
+    ####
+
+    def snapshot(self) -> ImuModelCheckpoint:
+        """Return a versioned, JSON-serializable snapshot of the complete model state."""
+        if not isinstance(self._accel_thermal_model, LinearThermalModel) or not isinstance(
+                self._gyro_thermal_model, LinearThermalModel
+        ):
+            raise TypeError("checkpointing requires the built-in LinearThermalModel")
+        ####
+        bit_generator = type(self.rng.bit_generator).__name__
+        if not _is_supported_bit_generator(bit_generator):
+            raise TypeError(f"checkpointing does not support NumPy bit generator {bit_generator!r}")
+        ####
+        rng_state = _json_compatible(self.rng.bit_generator.state)
+        if not isinstance(rng_state, dict):
+            raise TypeError("NumPy RNG state must be a JSON object")
+        ####
+        return ImuModelCheckpoint(
+            config=self.config,
+            rng_bit_generator=bit_generator,
+            rng_state=deepcopy(rng_state),
+            accelerometer_turn_on_bias=_vector3_tuple(self._accel_turn_on_bias),
+            gyroscope_turn_on_bias=_vector3_tuple(self._gyro_turn_on_bias),
+            accelerometer_bias=_vector3_tuple(self._accel_bias),
+            gyroscope_bias=_vector3_tuple(self._gyro_bias),
+            accelerometer_flicker_states=_flicker_state_tuple(self._accel_flicker.snapshot()),
+            gyroscope_flicker_states=_flicker_state_tuple(self._gyro_flicker.snapshot()),
+            accelerometer_misalignment=_matrix3_tuple(self._accel_misalignment),
+            gyroscope_misalignment=_matrix3_tuple(self._gyro_misalignment),
+            previous_timestamp=self._previous_timestamp,
+            previous_velocity=(
+                None if self._previous_velocity is None else _vector3_tuple(self._previous_velocity)
+            ),
+            previous_orientation=(
+                None if self._previous_orientation is None else _matrix3_tuple(self._previous_orientation)
+            ),
+        )
+    ####
+
+    def restore(self, checkpoint: ImuModelCheckpoint) -> None:
+        """Replace the model state with a previously captured checkpoint."""
+        if checkpoint.schema_version != 1:
+            raise ValueError(f"unsupported checkpoint schema version: {checkpoint.schema_version}")
+        ####
+        if checkpoint.model_type != "imu_error_model.ImuModel":
+            raise ValueError(f"unsupported checkpoint model type: {checkpoint.model_type!r}")
+        ####
+        if checkpoint.config != self.config:
+            raise ValueError("checkpoint configuration does not match this model")
+        ####
+        if checkpoint.thermal_model_type != "linear":
+            raise ValueError(f"unsupported checkpoint thermal model: {checkpoint.thermal_model_type!r}")
+        ####
+        if not isinstance(self._accel_thermal_model, LinearThermalModel) or not isinstance(
+                self._gyro_thermal_model, LinearThermalModel
+        ):
+            raise TypeError("checkpointing requires the built-in LinearThermalModel")
+        ####
+        restored_rng = _checkpoint_rng(checkpoint)
+        accel_turn_on_bias = _array_vector3(checkpoint.accelerometer_turn_on_bias)
+        gyro_turn_on_bias = _array_vector3(checkpoint.gyroscope_turn_on_bias)
+        accel_bias = _array_vector3(checkpoint.accelerometer_bias)
+        gyro_bias = _array_vector3(checkpoint.gyroscope_bias)
+        accel_flicker_states = _array_flicker_states(
+            checkpoint.accelerometer_flicker_states,
+            self._accel_flicker.snapshot().shape,
+        )
+        gyro_flicker_states = _array_flicker_states(
+            checkpoint.gyroscope_flicker_states,
+            self._gyro_flicker.snapshot().shape,
+        )
+        accel_misalignment = _array_matrix3(checkpoint.accelerometer_misalignment)
+        gyro_misalignment = _array_matrix3(checkpoint.gyroscope_misalignment)
+        previous_velocity = (
+            None if checkpoint.previous_velocity is None else _array_vector3(checkpoint.previous_velocity)
+        )
+        previous_orientation = (
+            None if checkpoint.previous_orientation is None else _array_matrix3(checkpoint.previous_orientation)
+        )
+        self.rng = restored_rng
+        self._accel_turn_on_bias = accel_turn_on_bias
+        self._gyro_turn_on_bias = gyro_turn_on_bias
+        self._accel_bias = accel_bias
+        self._gyro_bias = gyro_bias
+        self._accel_flicker.restore(accel_flicker_states)
+        self._gyro_flicker.restore(gyro_flicker_states)
+        self._accel_misalignment = accel_misalignment
+        self._gyro_misalignment = gyro_misalignment
+        self._previous_timestamp = checkpoint.previous_timestamp
+        self._previous_velocity = previous_velocity
+        self._previous_orientation = previous_orientation
+    ####
+
+    def save_checkpoint(
+            self,
+            path: str | Path,
+            *,
+            codec: CheckpointCodecProtocol[ImuModelCheckpoint] | None = None,
+    ) -> None:
+        """Write the complete model state atomically through a selected codec."""
+        destination = Path(path)
+        active_codec = self.checkpoint_codec if codec is None else codec
+        _atomic_write_bytes(destination, active_codec.encode(self.snapshot()))
+    ####
+
+    @classmethod
+    def load_checkpoint(
+            cls,
+            path: str | Path,
+            *,
+            codec: CheckpointCodecProtocol[ImuModelCheckpoint] | None = None,
+    ) -> ImuModel:
+        """Load a checkpoint through a selected codec and resume it."""
+        active_codec = cls._default_checkpoint_codec if codec is None else codec
+        checkpoint = active_codec.decode(Path(path).read_bytes())
+        if not isinstance(checkpoint, ImuModelCheckpoint):
+            raise TypeError("checkpoint codec returned an unexpected checkpoint type")
+        ####
+        return cls.from_checkpoint(checkpoint)
     ####
 
     def measure(self, timestamp: float, velocity_without_gravity: ndarray, orientation_world_from_body: ndarray,

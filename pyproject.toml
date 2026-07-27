@@ -1,17 +1,17 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=68", "setuptools-scm[simple]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "imu-error-model"
-version = "0.1.2"
+dynamic = ["version"]
 description = "Composable stochastic and parametric error models for synthetic IMU increments"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
-    "pydantic>=2.0",
+    "pydantic>=2.5",
     "PyYAML>=6"
 ]
 keywords = ["imu", "inertial", "sensor", "noise", "simulation", "allan-variance"]
@@ -35,7 +35,9 @@ dev = [
     "pytest>=8",
     "ruff>=0.6",
     "setuptools>=68",
+    "setuptools-scm>=8",
     "types-PyYAML",
+    "wheel>=0.44",
 ]
 
 [tool.pytest.ini_options]
@@ -65,3 +67,6 @@ typeCheckingMode = "basic"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"imu_error_model.data.example_profiles" = ["catalog.json", "baselines/*.yaml", "hardware_estimates/*.yaml"]

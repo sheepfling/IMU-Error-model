@@ -1,8 +1,8 @@
 from typing import Any, cast
 
+import pytest
 from numpy import array, block, cov, diag, exp, eye, full, hstack, inf, nan, testing, zeros
 from numpy.random import default_rng
-import pytest
 
 from imu_error_model import AxisConfig, ImuConfig, characterize_imu_error_process
 
@@ -274,4 +274,5 @@ def test_characterization_rejects_invalid_independent_inputs(kwargs: dict[str, A
     with pytest.raises(ValueError):
         inputs = {"dt": 1.0, **kwargs}
         characterize_imu_error_process(ImuConfig(), **cast(Any, inputs))
+    ####
 ####

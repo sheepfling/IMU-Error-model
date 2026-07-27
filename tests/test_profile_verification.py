@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from numpy import deg2rad, isclose
 
 from imu_error_model import LoadedProfile
@@ -10,17 +8,16 @@ def load_example(name: str, hardware_profiles: dict[str, LoadedProfile]) -> Load
 ####
 
 def test_all_hardware_examples_load_with_provenance(
-    hardware_profile_paths: tuple[Path, ...],
-    hardware_profiles: dict[str, LoadedProfile],
-    hardware_profile_texts: dict[str, str],
+        hardware_profile_paths: tuple[str, ...],
+        hardware_profiles: dict[str, LoadedProfile],
+        hardware_profile_texts: dict[str, str],
 ) -> None:
-    paths = hardware_profile_paths
-    assert len(paths) >= 10
-    for path in paths:
-        profile = hardware_profiles[path.name]
+    assert len(hardware_profile_paths) >= 10
+    for name in hardware_profile_paths:
+        profile = hardware_profiles[name]
         assert profile.model_name
         assert profile.sample_period_s > 0
-        assert profile.model_name in hardware_profile_texts[path.name]
+        assert profile.model_name in hardware_profile_texts[name]
         assert profile.config.accelerometer.measurement_range is not None
         assert profile.config.gyroscope.measurement_range is not None
         assert set(profile.metadata.model_dump()) == {
@@ -47,14 +44,12 @@ def test_all_hardware_examples_load_with_provenance(
 ####
 
 
-
-
 def test_all_hardware_examples_are_explicitly_notional(
-    hardware_profile_paths: tuple[Path, ...],
-    hardware_profile_texts: dict[str, str],
+        hardware_profile_paths: tuple[str, ...],
+        hardware_profile_texts: dict[str, str],
 ) -> None:
-    for path in hardware_profile_paths:
-        text = hardware_profile_texts[path.name].lower()
+    for name in hardware_profile_paths:
+        text = hardware_profile_texts[name].lower()
         assert "notional" in text
         assert "approximate modeling estimates" in text
         assert "not official" in text
@@ -62,11 +57,9 @@ def test_all_hardware_examples_are_explicitly_notional(
 ####
 
 
-
-
 def test_hg1700_ag58_uses_product_sheet_range_rate_and_noise(
-    hardware_profiles: dict[str, LoadedProfile],
-    standard_gravity: float,
+        hardware_profiles: dict[str, LoadedProfile],
+        standard_gravity: float,
 ) -> None:
     profile = load_example("hg1700ag58.yaml", hardware_profiles)
     accel = profile.config.accelerometer
@@ -85,8 +78,8 @@ def test_hg1700_ag58_uses_product_sheet_range_rate_and_noise(
 
 
 def test_hg1700_ag71_uses_reference_performance_table(
-    hardware_profiles: dict[str, LoadedProfile],
-    standard_gravity: float,
+        hardware_profiles: dict[str, LoadedProfile],
+        standard_gravity: float,
 ) -> None:
     profile = load_example("hg1700ag71.yaml", hardware_profiles)
     accel = profile.config.accelerometer
@@ -109,7 +102,7 @@ def test_hg1700_ag71_uses_reference_performance_table(
 
 
 def test_hg5700_profiles_include_published_scale_factors(
-    hardware_profiles: dict[str, LoadedProfile],
+        hardware_profiles: dict[str, LoadedProfile],
 ) -> None:
     for name in ("hg5700ca01.yaml", "hg5700ba01.yaml", "hg5700aa01.yaml"):
         profile = load_example(name, hardware_profiles)
@@ -120,7 +113,7 @@ def test_hg5700_profiles_include_published_scale_factors(
 
 
 def test_hg5700_ca01_prefers_detailed_brochure_arw(
-    hardware_profiles: dict[str, LoadedProfile],
+        hardware_profiles: dict[str, LoadedProfile],
 ) -> None:
     profile = load_example("hg5700ca01.yaml", hardware_profiles)
     assert isclose(profile.config.gyroscope.white_noise_density, deg2rad(0.0062) / 60.0)
@@ -128,8 +121,8 @@ def test_hg5700_ca01_prefers_detailed_brochure_arw(
 
 
 def test_adis_profile_exposes_explicit_allan_curve_choices(
-    hardware_profiles: dict[str, LoadedProfile],
-    standard_gravity: float,
+        hardware_profiles: dict[str, LoadedProfile],
+        standard_gravity: float,
 ) -> None:
     profile = load_example("ADIS16470.yaml", hardware_profiles)
     accel = profile.config.accelerometer
@@ -152,8 +145,8 @@ def test_adis_profile_exposes_explicit_allan_curve_choices(
 
 
 def test_hg9900_uses_product_function_specification(
-    hardware_profiles: dict[str, LoadedProfile],
-    standard_gravity: float,
+        hardware_profiles: dict[str, LoadedProfile],
+        standard_gravity: float,
 ) -> None:
     profile = load_example("hg9900.yaml", hardware_profiles)
     accel = profile.config.accelerometer

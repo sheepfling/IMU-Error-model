@@ -1,13 +1,12 @@
-from pathlib import Path
-
 from numpy import ones, testing
 
 from examples.allan_variance import allan_deviation, cluster_sizes_for_scale
 from examples.dead_reckoning import run_case
+from imu_error_model import LoadedProfile
 
 
-def test_dead_reckoning_example_runs_one_profile(hg9900_profile_path: Path) -> None:
-    result = run_case(hg9900_profile_path, duration=.02, seed=0)
+def test_dead_reckoning_example_runs_one_profile(hg9900_profile: LoadedProfile) -> None:
+    result = run_case(hg9900_profile, duration=.02, seed=0)
     assert result["model_name"] == "HG9900"
     assert result["final_position_error_m"] >= 0
 ####

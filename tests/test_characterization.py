@@ -1,8 +1,8 @@
 from typing import Any, cast
 
+import pytest
 from numpy import array, block, cov, diag, exp, eye, full, hstack, inf, nan, testing, zeros
 from numpy.random import default_rng
-import pytest
 
 from imu_error_model import AxisConfig, ImuConfig, characterize_imu_error_process
 

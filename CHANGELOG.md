@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Ships versioned example profiles in the wheel with resource-based discovery
+  and loading helpers.
+
+- Adds a separate packaged `baselines/ideal.yaml` noiseless profile and the
+  `load_noiseless_profile()` helper for deterministic tests and demonstrations.
+
+- Resolves packaged profiles by exact path, filename, or unambiguous short name,
+  with explicit errors for ambiguous matches.
+
+- Adds versioned JSON checkpoints for exact `ImuModel` pause/resume, including
+  RNG, latent process, misalignment, and truth-baseline state, plus a separate
+  `CheckpointableImuModelProtocol`.
+
+- Adds a format-neutral checkpoint codec protocol and a validated Pydantic JSON
+  codec; alternate models can select another transport representation.
+
 - Adds the pure `characterize_imu_error_process()` API for estimator-facing
   white-noise covariances, persistent-state transitions, elapsed-time priors,
   and conditional versus marginal increment covariances.

@@ -5,9 +5,9 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+import pytest
 from numpy import array, corrcoef, eye, isclose, testing, var, zeros
 from numpy.random import default_rng
-import pytest
 
 from imu_error_model import (
     AxisConfig,
@@ -54,9 +54,10 @@ def test_profile_round_trip(tmp_path: Path) -> None:
 ####
 
 
-def test_load_profile_dispatches_json_and_yaml(short_correlation_profile_path: Path, hg9900_profile_path: Path) -> None:
+def test_load_profile_dispatches_json_and_yaml(short_correlation_profile_path: Path,
+                                               hg9900_profile: LoadedProfile) -> None:
     json_config = load_profile(short_correlation_profile_path)
-    yaml_config = load_profile(hg9900_profile_path)
+    yaml_config = hg9900_profile.config
     json_bias_correlation_time = json_config.accelerometer.bias_correlation_time
     yaml_bias_correlation_time = yaml_config.accelerometer.bias_correlation_time
     assert json_bias_correlation_time is not None
@@ -67,11 +68,12 @@ def test_load_profile_dispatches_json_and_yaml(short_correlation_profile_path: P
 
 
 def test_json_and_yaml_documents_share_canonical_validation(
-    tmp_path: Path,
-    hg9900_profile_path: Path,
-    hardware_profile_payloads: dict[str, dict[str, Any]],
+        tmp_path: Path,
+        hardware_profile_texts: dict[str, str],
+        hardware_profile_payloads: dict[str, dict[str, Any]],
 ) -> None:
-    yaml_path = hg9900_profile_path
+    yaml_path = tmp_path / "profile.yaml"
+    yaml_path.write_text(hardware_profile_texts["hg9900.yaml"], encoding="utf-8")
     json_path = tmp_path / "profile.json"
     json_path.write_text(
         json.dumps(hardware_profile_payloads["hg9900.yaml"], default=str),
@@ -118,7 +120,8 @@ def test_config_loading_accepts_mappings_and_text_or_binary_streams() -> None:
 
     json_text = json.dumps(mapping)
     _assert_values_close(load_profile_stream(StringIO(json_text)).model_dump(), expected.model_dump())
-    _assert_values_close(load_profile_stream(BytesIO(json_text.encode()), fmt=".json").model_dump(), expected.model_dump())
+    _assert_values_close(load_profile_stream(BytesIO(json_text.encode()), fmt=".json").model_dump(),
+                         expected.model_dump())
 
     yaml_text = "accelerometer:\n  white_noise_density: 0.25\n"
     _assert_values_close(load_profile_stream(StringIO(yaml_text), fmt="yaml").model_dump(), expected.model_dump())
@@ -126,7 +129,7 @@ def test_config_loading_accepts_mappings_and_text_or_binary_streams() -> None:
 
 
 def test_stream_loader_accepts_complete_profile_documents(
-    hardware_profile_payloads: dict[str, dict[str, Any]],
+        hardware_profile_payloads: dict[str, dict[str, Any]],
 ) -> None:
     document = hardware_profile_payloads["hg9900.yaml"].copy()
     document["model_name"] = "stream-test"
@@ -208,7 +211,7 @@ def test_white_noise_variance_matches_density() -> None:
     _baseline(model)
     samples = array([model.measure((index + 1) * dt, zeros(3), eye(3)).acceleration for index in range(4000)])
     variance = var(samples[:, 0])
-    assert isclose(variance, density**2 / dt, rtol=0.12)
+    assert isclose(variance, density ** 2 / dt, rtol=0.12)
 ####
 
 
@@ -235,8 +238,8 @@ def test_temperature_vectors_are_retained(sbg_pulse_40_profile: LoadedProfile) -
 
 
 def test_all_reference_profiles_load(
-    hardware_profile_paths: tuple[Path, ...],
-    hardware_profiles: dict[str, LoadedProfile],
+        hardware_profile_paths: tuple[str, ...],
+        hardware_profiles: dict[str, LoadedProfile],
 ) -> None:
     assert len(hardware_profile_paths) == 14
     profiles = list(hardware_profiles.values())

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "categories": {
+    "hardware_estimates": {
+      "description": "Notional hardware and biological reference-system estimates.",
+      "format": "yaml"
+    },
+    "baselines": {
+      "description": "Deterministic synthetic baselines for tests and demonstrations.",
+      "format": "yaml"
+    }
+  }
+}

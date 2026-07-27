@@ -1277,8 +1277,8 @@ Validate finite inputs and proper rotation matrix\;
         \centering
         \begin{tikzpicture}
             \begin{loglogaxis}
-                        [
-                        width=0.88\textwidth,
+                [
+                width=0.88\textwidth,
                 height=0.49\textwidth,
                 xmin=0.02,xmax=100,
                 ymin=0.07,ymax=8,
@@ -1290,14 +1290,14 @@ Validate finite inputs and proper rotation matrix\;
                 tick label style={font=\small},
                 label style={font=\small},
                 legend style={at={(0.5,-0.22)},anchor=north,legend columns=3,draw=none,font=\small}
-                    ]
-                    \addplot[ImuBlue,very thick,domain=0.02:100,samples=180] {x^(-0.5)};
-                    \addlegendentry{white rate noise}
-                    \addplot[ImuOrange,very thick,dashed,domain=0.02:100,samples=180] {sqrt(x/3)};
-                    \addlegendentry{rate random walk}
-                    \addplot[ImuTeal,very thick,domain=0.02:100,samples=220]
-                    {sqrt(2/x - (1/x)^2*(3 - 4*exp(-x) + exp(-2*x)))};
-                    \addlegendentry{stationary Gauss--Markov}
+                ]
+                \addplot[ImuBlue,very thick,domain=0.02:100,samples=180] {x^(-0.5)};
+                \addlegendentry{white rate noise}
+                \addplot[ImuOrange,very thick,dashed,domain=0.02:100,samples=180] {sqrt(x/3)};
+                \addlegendentry{rate random walk}
+                \addplot[ImuTeal,very thick,domain=0.02:100,samples=220]
+                {sqrt(2/x - (1/x)^2*(3 - 4*exp(-x) + exp(-2*x)))};
+                \addlegendentry{stationary Gauss--Markov}
             \end{loglogaxis}
         \end{tikzpicture}
         \caption{Normalized Allan-deviation signatures. Absolute levels depend on
@@ -1653,6 +1653,13 @@ Temperature coefficient & $\vect c_b$, $\vect c_n$, $\vect c_{\mathrm{sf}}$ & Ve
         \item[\software{ImuModelProtocol}]
         A structural interface for any stateful implementation that accepts truth
         samples and returns IMU increments.
+        \item[\software{CheckpointableImuModelProtocol}]
+        An optional generic structural interface exposing model-defined snapshot and
+        restore operations for implementations that can pause and resume their
+        stochastic state exactly. It does not prescribe JSON, Pydantic, or disk I/O.
+        \item[\software{SerializableCheckpointableImuModelProtocol}]
+        An optional refinement that exposes a typed byte codec for a checkpointable
+        model. Its codec may use JSON, MessagePack, CBOR, or another transport format.
         \item[\software{ImuConfig}]
         Top-level configuration, including global output scaling and channel
         configuration.
@@ -1760,6 +1767,50 @@ estimator.propagate(
     \end{itemize}
     Thread safety should not be assumed unless a concrete implementation documents
     its synchronization behavior.
+
+
+    \section{Checkpoint and resume}
+    The built-in \software{ImuModel} supports an explicit pause/resume boundary.
+    \software{snapshot()} returns the versioned Pydantic model
+    \software{ImuModelCheckpoint}; \software{save\_checkpoint(path)} uses the
+    built-in JSON codec to write that envelope as UTF-8, and
+    \software{load\_checkpoint(path)} or \software{from\_checkpoint(checkpoint)}
+    reconstructs a model ready for its next measurement.
+
+    A checkpoint taken between completed \software{measure} calls contains the
+    canonical configuration, NumPy bit-generator class and state, turn-on bias,
+    current Gauss--Markov/random-walk bias, every finite-band flicker component,
+    sampled misalignment, and the previous timestamp, velocity, and orientation.
+    Restoring all of these values is necessary: restoring only a seed would not
+    reproduce a run after the random stream had advanced, and restoring only the
+    latent biases would lose the interval baseline.
+
+    \begin{lstlisting}[style=imuPython,caption={Pause and resume a stochastic model.},label={lst:checkpoint}]
+model.save_checkpoint("run-checkpoint.json")
+
+# The file can be moved to another process or host with the same package contract.
+resumed = ImuModel.load_checkpoint("run-checkpoint.json")
+output = resumed.measure(
+    timestamp=t_next,
+    velocity_without_gravity=velocity_world_next,
+    orientation_world_from_body=rotation_world_from_body_next,
+    temperature_celsius=temperature_next,
+)
+    \end{lstlisting}
+
+    The built-in codec is format-specific and uses JSON rather than a Python
+    pickle. Its byte boundary is suitable for files or wire transport and its
+    payload includes a schema version and model identifier so unsupported data
+    fails explicitly. The generic \software{CheckpointableImuModelProtocol}
+    requires only model-defined snapshot and restore operations; the optional
+    \software{SerializableCheckpointableImuModelProtocol} adds a typed codec
+    for byte transport. A different implementation may use a different checkpoint
+    type and a MessagePack, CBOR, or binary codec. A custom \software{ThermalModel}
+    may carry additional state and therefore must provide its own persistence
+    mechanism before it can participate in an exact checkpoint. File writes are
+    atomic, and \software{save\_checkpoint(..., codec=...)} and
+    \software{load\_checkpoint(..., codec=...)} allow an explicitly selected
+    codec when JSON is not the desired transport representation.
 
 
     \section{Extension points}

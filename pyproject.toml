@@ -65,3 +65,6 @@ typeCheckingMode = "basic"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"imu_error_model.data.example_profiles" = ["catalog.json", "baselines/*.yaml", "hardware_estimates/*.yaml"]

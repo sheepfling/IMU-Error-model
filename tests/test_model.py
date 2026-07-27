@@ -1,7 +1,7 @@
+import pytest
 from numpy import allclose, array, cos, diag, eye, ones, pi, sin, testing, zeros
 from numpy.linalg import norm
 from numpy.random import default_rng
-import pytest
 
 from imu_error_model import AxisConfig, ImuConfig, ImuModel
 from imu_error_model.runtime import compile_axis_config

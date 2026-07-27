@@ -7,11 +7,19 @@ import os
 from pathlib import Path
 
 import matplotlib
-from numpy import arange, array, asarray, column_stack, cos, cumsum, diff, eye, geomspace, linspace, maximum, mean, ndarray, pi, rad2deg, sin, sqrt, unique, zeros
+from numpy import arange, array, asarray, column_stack, cos, cumsum, diff, eye, geomspace, linspace, maximum, mean, \
+    ndarray, pi, rad2deg, sin, sqrt, unique, zeros
 from numpy.linalg import norm
 from numpy.random import default_rng
 
-from imu_error_model import AxisConfig, ImuConfig, ImuModel, load_profile, load_profile_document
+from imu_error_model import (
+    AxisConfig,
+    ImuConfig,
+    ImuModel,
+    LoadedProfile,
+    load_example_profile,
+    load_profile,
+)
 from imu_error_model.kinematics import rotation_vector_from_matrix
 
 
@@ -20,7 +28,6 @@ import matplotlib.pyplot as plt
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE_DIR = ROOT / "examples" / "imu_profiles" / "hardware-estimates"
 PROFILE_COLORS = {
     "HG9900": "#1864ab",
     "HG5700CA01": "#2b8a3e",
@@ -74,8 +81,7 @@ def calc_cluster_sizes(sample_period: float, duration: float, points: int = 28) 
     return unique(geomspace(minimum / sample_period, maximum / sample_period, points).astype(int).clip(1))
 ####
 
-def collect_profile_rates(path: Path, duration: float, seed: int) -> tuple[str, float, ndarray, ndarray]:
-    profile = load_profile_document(path)
+def collect_profile_rates(profile: LoadedProfile, duration: float, seed: int) -> tuple[str, float, ndarray, ndarray]:
     dt = profile.sample_period_s
     model = ImuModel(profile.config, rng=default_rng(seed))
     count = int(duration / dt)
@@ -128,7 +134,7 @@ def plot_profile_ladder(output_dir: Path, duration: float) -> str:
     selected = ["hg9900.yaml", "hg5700ca01.yaml", "hg1700ag58.yaml", "iphone_like.yaml"]
     records = []
     for index, filename in enumerate(selected):
-        name, dt, accel, gyro = collect_profile_rates(PROFILE_DIR / filename, duration, 100 + index)
+        name, dt, accel, gyro = collect_profile_rates(load_example_profile(filename), duration, 100 + index)
         tau = calc_cluster_sizes(dt, duration)
         records.append((name, allan_deviation(accel, dt, tau), allan_deviation(gyro, dt, tau)))
     ####
@@ -189,8 +195,7 @@ def plot_error_anatomy(output_dir: Path, duration: float) -> str:
     return "error-anatomy-allan"
 ####
 
-def reconstruction_series(path: Path, duration: float, seed: int) -> tuple[ndarray, ndarray, ndarray]:
-    profile = load_profile_document(path)
+def reconstruction_series(profile: LoadedProfile, duration: float, seed: int) -> tuple[ndarray, ndarray, ndarray]:
     dt = profile.sample_period_s
     times, truth_position, truth_velocity, truth_orientation = truth_trajectory(duration, dt)
     model = ImuModel(profile.config, rng=default_rng(seed))
@@ -225,8 +230,9 @@ def plot_reconstruction(output_dir: Path, duration: float) -> str:
     selected = ["hg9900.yaml", "hg1700ag58.yaml", "iphone_like.yaml"]
     figure, axes = plt.subplots(2, 1, figsize=(11, 7), sharex=True, constrained_layout=True)
     for index, filename in enumerate(selected):
-        name = load_profile_document(PROFILE_DIR / filename).model_name
-        times, position_error, attitude_error = reconstruction_series(PROFILE_DIR / filename, duration, 300 + index)
+        profile = load_example_profile(filename)
+        name = profile.model_name
+        times, position_error, attitude_error = reconstruction_series(profile, duration, 300 + index)
         color = PROFILE_COLORS[name]
         axes[0].semilogy(times, maximum(position_error, 1e-9), linewidth=2, label=name, color=color)
         axes[1].semilogy(times, maximum(attitude_error, 1e-9), linewidth=2, label=name, color=color)
@@ -245,7 +251,7 @@ def plot_reconstruction(output_dir: Path, duration: float) -> str:
 ####
 
 def plot_measurement_time_series(output_dir: Path, duration: float = 8.0) -> str:
-    profile = load_profile_document(PROFILE_DIR / "hg1700ag58.yaml")
+    profile = load_example_profile("hg1700ag58")
     dt = profile.sample_period_s
     times = arange(0.0, duration + dt / 2.0, dt)
     truth_acceleration = 0.4 + 0.1 * sin(2.0 * pi * times / 3.0)
@@ -299,7 +305,7 @@ def plot_measurement_time_series(output_dir: Path, duration: float = 8.0) -> str
 ####
 
 def plot_temperature(output_dir: Path, points: int) -> str:
-    source = load_profile_document(PROFILE_DIR / "sbg_pulse_40.yaml")
+    source = load_example_profile("sbg_pulse_40")
     accel = source.config.accelerometer.model_copy(
         update={
             "white_noise_density": 0.0,

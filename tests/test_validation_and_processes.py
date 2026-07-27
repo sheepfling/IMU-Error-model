@@ -1,8 +1,8 @@
 from typing import Any
 
+import pytest
 from numpy import array, diag, eye, inf, isclose, nan, ones, testing, zeros
 from numpy.random import default_rng
-import pytest
 
 from imu_error_model import AxisConfig, ImuConfig, ImuModel
 from imu_error_model.kinematics import rotation_vector_from_matrix, validate_orientation

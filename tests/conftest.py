@@ -4,7 +4,14 @@ from typing import Any
 import pytest
 import yaml
 
-from imu_error_model import ImuConfig, LoadedProfile, load_profile, load_profile_document
+from imu_error_model import (
+    ImuConfig,
+    LoadedProfile,
+    list_example_profiles,
+    load_example_profile,
+    load_profile,
+    read_example_profile,
+)
 
 
 @pytest.fixture(scope="session")
@@ -18,36 +25,31 @@ def project_root() -> Path:
 ####
 
 @pytest.fixture(scope="session")
-def hardware_profile_dir(project_root: Path) -> Path:
-    return project_root / "examples" / "imu_profiles" / "hardware-estimates"
+def hardware_profile_paths() -> tuple[str, ...]:
+    return list_example_profiles()
 ####
 
 @pytest.fixture(scope="session")
-def hardware_profile_paths(hardware_profile_dir: Path) -> tuple[Path, ...]:
-    return tuple(sorted(hardware_profile_dir.glob("*.yaml")))
-####
-
-@pytest.fixture(scope="session")
-def hardware_profile_texts(hardware_profile_paths: tuple[Path, ...]) -> dict[str, str]:
+def hardware_profile_texts(hardware_profile_paths: tuple[str, ...]) -> dict[str, str]:
     return {
-        path.name: path.read_text(encoding="utf-8")
-        for path in hardware_profile_paths
+        name: read_example_profile(name)
+        for name in hardware_profile_paths
     }
 ####
 
 @pytest.fixture(scope="session")
-def hardware_profile_payloads(hardware_profile_paths: tuple[Path, ...]) -> dict[str, dict[str, Any]]:
+def hardware_profile_payloads(hardware_profile_paths: tuple[str, ...]) -> dict[str, dict[str, Any]]:
     return {
-        path.name: yaml.safe_load(path.read_text(encoding="utf-8"))
-        for path in hardware_profile_paths
+        name: yaml.safe_load(read_example_profile(name))
+        for name in hardware_profile_paths
     }
 ####
 
 @pytest.fixture(scope="session")
-def hardware_profiles(hardware_profile_paths: tuple[Path, ...]) -> dict[str, LoadedProfile]:
+def hardware_profiles(hardware_profile_paths: tuple[str, ...]) -> dict[str, LoadedProfile]:
     return {
-        path.name: load_profile_document(path)
-        for path in hardware_profile_paths
+        name: load_example_profile(name)
+        for name in hardware_profile_paths
     }
 ####
 
@@ -70,11 +72,6 @@ def test_profiles(test_profile_paths: dict[str, Path]) -> dict[str, ImuConfig]:
         name: load_profile(path)
         for name, path in test_profile_paths.items()
     }
-####
-
-@pytest.fixture(scope="session")
-def hg9900_profile_path(hardware_profile_dir: Path) -> Path:
-    return hardware_profile_dir / "hg9900.yaml"
 ####
 
 @pytest.fixture(scope="session")

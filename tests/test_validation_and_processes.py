@@ -38,20 +38,25 @@ from imu_error_model.processes import (
 def test_axis_configuration_rejects_invalid_values(kwargs: dict[str, Any]) -> None:
     with pytest.raises(ValueError):
         AxisConfig(**kwargs)
+    ####
 ####
 
 def test_configuration_rejects_bad_covariance_and_scale() -> None:
     with pytest.raises(ValueError):
         AxisConfig(noise_covariance=((1, 2, 0), (0, 1, 0), (0, 0, 1)))
+    ####
     with pytest.raises(ValueError):
         ImuConfig(output_scale_gyroscope=0)
+    ####
     with pytest.raises(ValueError):
         ImuConfig(output_scale_accelerometer=inf)
+    ####
     with pytest.raises(ValueError):
         AxisConfig(
             misalignment_std=0.1,
             misalignment_covariance=((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
         )
+    ####
 ####
 
 def test_processes_handle_zero_dt_and_random_walk() -> None:
@@ -98,16 +103,20 @@ def test_kinematics_validates_and_handles_identity() -> None:
     testing.assert_array_equal(rotation_vector_from_matrix(eye(3)), zeros(3))
     with pytest.raises(ValueError):
         validate_orientation(eye(2))
+    ####
     with pytest.raises(ValueError):
         validate_orientation(diag([1.0, 1.0, -1.0]))
+    ####
 ####
 
 def test_model_rejects_bad_truth_inputs_and_can_reset() -> None:
     model = ImuModel()
     with pytest.raises(ValueError):
         model.measure(0, array([nan, 0, 0]), eye(3))
+    ####
     with pytest.raises(ValueError):
         model.measure(0, zeros(3), eye(3), temperature_celsius=inf)
+    ####
     model.measure(0, zeros(3), eye(3))
     model.reset()
     assert isclose(model.measure(0, zeros(3), eye(3)).dt, 0.0)

@@ -274,4 +274,5 @@ def test_characterization_rejects_invalid_independent_inputs(kwargs: dict[str, A
     with pytest.raises(ValueError):
         inputs = {"dt": 1.0, **kwargs}
         characterize_imu_error_process(ImuConfig(), **cast(Any, inputs))
+    ####
 ####

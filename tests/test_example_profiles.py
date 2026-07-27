@@ -54,6 +54,7 @@ def test_packaged_example_profile_rejects_resource_traversal() -> None:
         assert "invalid profile resource name" in str(error)
     else:
         raise AssertionError("resource traversal should be rejected")
+    ####
 ####
 
 

@@ -13,6 +13,7 @@ def collect_acceleration(config: ImuConfig, duration: float = 100.0, dt: float =
         if output.dt:
             samples.append(float(output.acceleration[0]))
         ####
+    ####
     return asarray(samples)
 ####
 

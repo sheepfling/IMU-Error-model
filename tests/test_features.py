@@ -35,10 +35,12 @@ def _assert_values_close(actual: Any, expected: Any) -> None:
         assert actual.keys() == expected.keys()
         for key in actual:
             _assert_values_close(actual[key], expected[key])
+        ####
     elif isinstance(actual, (list, tuple)) and isinstance(expected, (list, tuple)):
         assert len(actual) == len(expected)
         for actual_item, expected_item in zip(actual, expected):
             _assert_values_close(actual_item, expected_item)
+        ####
     else:
         assert actual == expected
     ####
@@ -92,6 +94,7 @@ def test_load_profile_rejects_unknown_extension(tmp_path: Path) -> None:
     path.write_text("", encoding="utf-8")
     with pytest.raises(ValueError, match="unsupported profile extension"):
         load_profile(path)
+    ####
 ####
 
 

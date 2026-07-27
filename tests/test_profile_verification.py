@@ -109,6 +109,7 @@ def test_hg5700_profiles_include_published_scale_factors(
         assert isclose(profile.config.accelerometer.scale_factor, 120e-6)
         assert isclose(profile.config.gyroscope.scale_factor, 40e-6)
         assert isclose(profile.config.accelerometer.white_noise_density, 0.065 * 0.3048 / 60.0)
+    ####
 ####
 
 

@@ -188,6 +188,7 @@ def _block_diagonal(blocks: Sequence[ndarray]) -> ndarray:
         size = block.shape[0]
         result[start:start + size, start:start + size] = block
         start += size
+    ####
     return result
 ####
 
@@ -264,6 +265,7 @@ def _persistent_estimate(
         start = eye(3) * (elapsed_phi ** 2 * std ** 2 + elapsed_variance)
         end = transition @ start @ transition.T + process
         add_block(f"flicker_{index}", transition, process, initial, start, end)
+    ####
 
     initial_mean = zeros(3 * len(block_labels))
     start_mean = zeros(initial_mean.shape)
@@ -274,6 +276,7 @@ def _persistent_estimate(
     measurement_matrix = zeros((3, initial_mean.size))
     for state_slice in state_block_slices:
         measurement_matrix[:, state_slice] = eye(3)
+    ####
 
     return PersistentProcessEstimate(
         state_block_labels=tuple(block_labels),

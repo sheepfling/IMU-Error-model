@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from shlex import join as shell_join
 import shutil
 import subprocess
 import sys
@@ -17,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def run(*args: str) -> None:
     command = [sys.executable, *args]
-    print("+", " ".join(command), flush=True)
+    print("+", shell_join(command), flush=True)
     environment = os.environ.copy()
     source_path = str(ROOT / "src")
     environment["PYTHONPATH"] = source_path + os.pathsep + environment.get("PYTHONPATH", "")
@@ -31,7 +32,7 @@ def run_isolated(
 ) -> None:
     """Run a command without the repository source tree on its import path."""
     command = [sys.executable, *args]
-    print("+", " ".join(command), flush=True)
+    print("+", shell_join(command), flush=True)
     environment = os.environ.copy()
     if pythonpath is None:
         environment.pop("PYTHONPATH", None)
@@ -123,7 +124,7 @@ def build() -> None:
 ####
 
 def package_smoke() -> None:
-    """Build a wheel and test it from an isolated install target."""
+    """Build a wheel and test it from an isolated installation target."""
     with TemporaryDirectory(prefix="imu-error-model-package-") as temporary:
         temporary_root = Path(temporary)
         wheel_directory = temporary_root / "wheel"
@@ -142,6 +143,7 @@ def package_smoke() -> None:
         )
         with ZipFile(wheel) as archive:
             wheel_files = set(archive.namelist())
+        ####
         expected_files = set(expected_package_files)
         missing = sorted(path for path in expected_files if path not in wheel_files)
         if missing:
@@ -175,6 +177,7 @@ def package_smoke() -> None:
             pythonpath=install_directory,
             extra_environment={"IMU_ERROR_MODEL_EXPECTED_PACKAGE_ROOT": str(install_directory)},
         )
+    ####
 ####
 
 
@@ -210,7 +213,7 @@ def docs(build_pdf: bool) -> None:
             command = [latex, "-interaction=nonstopmode", "-halt-on-error", "-output-directory=" + str(output),
                        source.name]
         ####
-        print("+", " ".join(command), flush=True)
+        print("+", shell_join(command), flush=True)
         subprocess.run(command, cwd=source_directory, check=True)
     ####
 ####

@@ -10,25 +10,26 @@ from pathlib import Path
 
 DEFAULT_ROOTS = (Path("src"), Path("scripts"), Path("tests"), Path("examples"))
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef)
-REQUIRED_SCOPE_NODES = (*FUNCTION_NODES, ast.ClassDef, ast.If)
-OPTIONAL_SCOPE_NODES = (
+REQUIRED_SCOPE_NODES = (
+    *FUNCTION_NODES,
+    ast.ClassDef,
+    ast.If,
     ast.For,
     ast.AsyncFor,
     ast.While,
     ast.With,
     ast.AsyncWith,
     ast.Try,
+    ast.TryStar,
     ast.Match,
 )
-SCOPE_NODES = (
-    *REQUIRED_SCOPE_NODES,
-    *OPTIONAL_SCOPE_NODES,
-)
+SCOPE_NODES = REQUIRED_SCOPE_NODES
 
 def _read_text(path: Path) -> str:
     """Read source text without normalizing platform-specific newlines."""
     with path.open("r", encoding="utf-8", newline="") as stream:
         return stream.read()
+    ####
 ####
 
 
@@ -36,6 +37,7 @@ def _write_text(path: Path, text: str) -> None:
     """Write source text without translating platform-specific newlines."""
     with path.open("w", encoding="utf-8", newline="") as stream:
         stream.write(text)
+    ####
 ####
 
 
@@ -88,6 +90,7 @@ def _parent_nodes(tree: ast.AST) -> dict[int, ast.AST]:
     for parent in ast.walk(tree):
         for child in ast.iter_child_nodes(parent):
             parents[id(child)] = parent
+        ####
     ####
     return parents
 ####
@@ -163,6 +166,7 @@ def _python_files(roots: list[Path]) -> list[Path]:
         elif root.is_dir():
             files.update(root.rglob("*.py"))
         ####
+    ####
     return sorted(files)
 ####
 
@@ -214,10 +218,23 @@ def check_scope_markers(roots: list[Path]) -> list[str]:
                 description = f"class {node.name!r}"
             elif isinstance(node, FUNCTION_NODES):
                 description = f"function {node.name!r}"
-            else:
+            elif isinstance(node, ast.If):
                 description = "if/elif/else chain"
+            elif isinstance(node, (ast.For, ast.AsyncFor)):
+                description = "for/else loop"
+            elif isinstance(node, ast.While):
+                description = "while loop"
+            elif isinstance(node, (ast.With, ast.AsyncWith)):
+                description = "with statement"
+            elif isinstance(node, (ast.Try, ast.TryStar)):
+                description = "try/except/else/finally block"
+            elif isinstance(node, ast.Match):
+                description = "match statement"
+            else:
+                description = "compound statement"
             ####
             entries.append((node.lineno, f"{path}:{node.lineno}: {description} must close with ####"))
+        ####
         entries.extend((index + 1, f"{path}:{index + 1}: unexpected #### marker") for index in misplaced)
         diagnostics.extend(message for _, message in sorted(entries))
     ####

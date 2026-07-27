@@ -18,6 +18,7 @@ def _read_text(path: Path) -> str:
     """Read Markdown without normalizing platform-specific newlines."""
     with path.open("r", encoding="utf-8", newline="") as stream:
         return stream.read()
+    ####
 ####
 
 
@@ -25,6 +26,7 @@ def _write_text(path: Path, text: str) -> None:
     """Write Markdown without translating platform-specific newlines."""
     with path.open("w", encoding="utf-8", newline="") as stream:
         stream.write(text)
+    ####
 ####
 
 
@@ -99,6 +101,7 @@ def markdown_files(paths: list[Path]) -> list[Path]:
         elif candidate.is_dir():
             files.update(candidate.rglob("*.md"))
         ####
+    ####
     return sorted(files)
 ####
 

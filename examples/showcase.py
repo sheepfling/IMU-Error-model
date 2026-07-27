@@ -185,6 +185,7 @@ def plot_error_anatomy(output_dir: Path, duration: float) -> str:
         tau = calc_cluster_sizes(0.01, duration)
         curve_tau, deviation = allan_deviation(samples, 0.01, tau)
         axis.loglog(curve_tau, deviation, marker="o", markersize=3, linewidth=2, label=label, color=color)
+    ####
     axis.set_title("Composable error terms leave distinct Allan signatures", fontsize=17, fontweight="bold")
     axis.set_xlabel("Averaging time τ (s)")
     axis.set_ylabel("Accelerometer Allan deviation (m/s²)")

@@ -12,7 +12,9 @@ def test_installed_wheel_exposes_all_packaged_profiles() -> None:
     """Verify the installed package exposes every profile resource and loader path."""
     expected_root = os.environ.get("IMU_ERROR_MODEL_EXPECTED_PACKAGE_ROOT")
     if expected_root is not None:
-        package_file = Path(imu_error_model.__file__).resolve()
+        package_path = imu_error_model.__file__
+        assert package_path is not None
+        package_file = Path(package_path).resolve()
         assert package_file.is_relative_to(Path(expected_root).resolve())
     ####
     assert files("imu_error_model.data.example_profiles").joinpath("catalog.json").is_file()

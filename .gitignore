@@ -14,7 +14,6 @@ coverage.xml
 .coverage
 htmlcov/
 .ruff_cache/
-dist/
 docs/artifacts/
 artifacts/
 

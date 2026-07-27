@@ -25,6 +25,16 @@ REQUIRED_SCOPE_NODES = (
 )
 SCOPE_NODES = REQUIRED_SCOPE_NODES
 
+def _source_location(node: ast.AST) -> tuple[int, int] | None:
+    """Return a node's end line and column when both locations are present."""
+    end_line = getattr(node, "end_lineno", None)
+    column = getattr(node, "col_offset", None)
+    if not isinstance(end_line, int) or not isinstance(column, int):
+        return None
+    ####
+    return end_line, column
+####
+
 def _read_text(path: Path) -> str:
     """Read source text without normalizing platform-specific newlines."""
     with path.open("r", encoding="utf-8", newline="") as stream:
@@ -49,11 +59,11 @@ def _indentation(line: str) -> int:
 
 def _scope_marker_index(lines: list[str], node: ast.AST) -> int | None:
     """Return the line index of a scope's marker, if one is correctly placed."""
-    end_line = getattr(node, "end_lineno", None)
-    column = getattr(node, "col_offset", None)
-    if end_line is None or column is None:
+    location = _source_location(node)
+    if location is None:
         return None
     ####
+    end_line, column = location
     for index, line in enumerate(lines[end_line:], start=end_line):
         if not line.strip():
             continue
@@ -103,22 +113,24 @@ def _is_elif_node(
 ) -> bool:
     """Return whether an ``if`` node is part of its parent's branch chain."""
     parent = parents.get(id(node))
-    return (
-            isinstance(parent, ast.If)
-            and parent.orelse
-            and parent.orelse[0] is node
-            and lines[node.lineno - 1].lstrip().startswith("elif")
-    )
+    if not isinstance(parent, ast.If) or not parent.orelse:
+        return False
+    ####
+    line_number = getattr(node, "lineno", None)
+    if not isinstance(line_number, int):
+        return False
+    ####
+    return parent.orelse[0] is node and lines[line_number - 1].lstrip().startswith("elif")
 ####
 
 
 def _scope_marker_insert_index(lines: list[str], node: ast.AST) -> int:
     """Return the insertion point after any already-closed child scopes."""
-    end_line = getattr(node, "end_lineno", None)
-    column = getattr(node, "col_offset", None)
-    if end_line is None or column is None:
+    location = _source_location(node)
+    if location is None:
         raise ValueError("scope node has no source location")
     ####
+    end_line, column = location
     index = end_line
     while index < len(lines):
         line = lines[index]
@@ -233,7 +245,11 @@ def check_scope_markers(roots: list[Path]) -> list[str]:
             else:
                 description = "compound statement"
             ####
-            entries.append((node.lineno, f"{path}:{node.lineno}: {description} must close with ####"))
+            line_number = getattr(node, "lineno", None)
+            if not isinstance(line_number, int):
+                continue
+            ####
+            entries.append((line_number, f"{path}:{line_number}: {description} must close with ####"))
         ####
         entries.extend((index + 1, f"{path}:{index + 1}: unexpected #### marker") for index in misplaced)
         diagnostics.extend(message for _, message in sorted(entries))

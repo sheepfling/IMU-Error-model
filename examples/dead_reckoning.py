@@ -110,7 +110,7 @@ def main() -> int:
     with args.output.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(dict(row) for row in rows)
     ####
     for row in rows:
         print(

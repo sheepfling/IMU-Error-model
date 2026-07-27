@@ -3,5 +3,6 @@ include LICENSE
 include tests/profiles/*.json
 recursive-include tests/profiles/test *.json
 include docs/*.tex
+include docs/*.bib
 recursive-include examples *.py *.md
 recursive-include src/imu_error_model/data/example_profiles *.json *.yaml

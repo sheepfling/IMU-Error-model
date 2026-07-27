@@ -1,9 +1,9 @@
 """Versioned checkpoints for resumable IMU model simulations."""
 
 from math import isfinite
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
 from .config import ImuConfig
 
@@ -12,7 +12,6 @@ Vector3 = tuple[float, float, float]
 Matrix3 = tuple[Vector3, Vector3, Vector3]
 FlickerStates = tuple[Vector3, ...]
 RngBitGeneratorName = Literal["PCG64", "PCG64DXSM", "Philox", "SFC64", "MT19937"]
-JsonValue: TypeAlias = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 
 class ImuModelCheckpoint(BaseModel):
     """Complete resumable state for `imu_error_model.ImuModel`."""

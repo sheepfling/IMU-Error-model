@@ -88,7 +88,7 @@ def analysis(
         reconstruction_duration: float,
         temperature_points: int,
 ) -> None:
-    """Regenerate the complete analysis and showcase artifact bundle."""
+    """Regenerate the complete analysis and showcase artifacts."""
     allan(duration, points)
     showcase(duration, reconstruction_duration, temperature_points)
 ####
@@ -206,6 +206,9 @@ def docs(build_pdf: bool) -> None:
         # Compile from the source directory so sibling inputs such as the
         # shared style fragment and bibliography resolve for direct users too.
         source_directory = source.parent
+        for bibliography in source_directory.glob("*.bib"):
+            shutil.copy2(bibliography, output / bibliography.name)
+        ####
         if Path(latex).name == "latexmk":
             command = [latex, "-pdf", "-interaction=nonstopmode", "-halt-on-error", "-outdir=" + str(output),
                        source.name]

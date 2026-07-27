@@ -32,11 +32,11 @@ def test_all_hardware_examples_load_with_provenance(
         }
         sources = profile.metadata.sources
         assert sources
-        assert all(str(source.url).startswith(("http://", "https://")) for source in sources)
+        assert all(source.url.scheme in {"http", "https"} for source in sources)
         assert all(len(source.date.isoformat()) == 10 for source in sources)
         assert all(source.archive_urls is not None for source in sources)
         assert all(
-            str(archive_url).startswith(("http://", "https://"))
+            archive_url.scheme in {"http", "https"}
             for source in sources
             for archive_url in source.archive_urls
         )

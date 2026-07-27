@@ -114,8 +114,8 @@ def collect_profile_rates(
     for index in range(count + 1):
         output = model.measure(index * dt, zeros(3), eye(3))
         if output.dt:
-            accelerometer.append(float((output.delta_v / output.dt / accel_scale)[0]))
-            gyroscope.append(float((output.delta_theta / output.dt / gyro_scale)[0]))
+            accelerometer.append(float(output.delta_v[0]) / output.dt / accel_scale)
+            gyroscope.append(float(output.delta_theta[0]) / output.dt / gyro_scale)
         ####
     ####
     parameters = {

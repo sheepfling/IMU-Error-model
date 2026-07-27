@@ -209,20 +209,20 @@ def _persistent_estimate(
 
     def add_block(
             label: str,
-            transition: ndarray,
-            process: ndarray,
-            initial: ndarray,
-            start: ndarray,
-            end: ndarray,
+            transition_block: ndarray,
+            process_block: ndarray,
+            initial_block: ndarray,
+            start_block: ndarray,
+            end_block: ndarray,
     ) -> None:
         block_labels.append(label)
         offset = 3 * len(block_labels) - 3
         state_block_slices.append(slice(offset, offset + 3))
-        transition_blocks.append(transition)
-        process_blocks.append(process)
-        initial_blocks.append(initial)
-        start_blocks.append(start)
-        end_blocks.append(end)
+        transition_blocks.append(transition_block)
+        process_blocks.append(process_block)
+        initial_blocks.append(initial_block)
+        start_blocks.append(start_block)
+        end_blocks.append(end_block)
     ####
 
     if bool(asarray(config.turn_on_bias_std).any()):

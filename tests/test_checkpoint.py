@@ -10,6 +10,7 @@ from imu_error_model import (
     ImuConfig,
     ImuModel,
     ImuModelCheckpoint,
+    ImuModelProtocol,
     PydanticJsonCheckpointCodec,
     SerializableCheckpointableImuModelProtocol,
 )
@@ -32,7 +33,7 @@ def _config() -> ImuConfig:
 ####
 
 
-def _measure(model: ImuModel, timestamp: float):
+def _measure(model: ImuModelProtocol, timestamp: float):
     velocity = array([0.2 * timestamp, -0.1 * timestamp, 0.05 * timestamp])
     return model.measure(timestamp, velocity, eye(3), temperature_celsius=30.0)
 ####

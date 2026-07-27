@@ -145,7 +145,7 @@ class FlickerBiasProcess:
     ####
 
     def restore(self, states: ndarray) -> None:
-        """Restore finite-band component state and invalidate cached transitions."""
+        """Restore the finite-band component state and invalidate cached transitions."""
         values = asarray(states, dtype=float)
         if values.size == 0 and self._states.shape == (0, 3):
             values = zeros((0, 3))

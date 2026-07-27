@@ -4,7 +4,7 @@ from copy import deepcopy
 from os import fsync, replace
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar, TypeGuard, cast
 
 from numpy import all, array, asarray, cos, eye, isfinite, ndarray, random, sin, uint64, zeros
 from numpy.linalg import norm
@@ -133,6 +133,12 @@ def _restore_json_rng_state(value: JsonValue) -> Any:
 ####
 
 
+def _is_supported_bit_generator(value: str) -> TypeGuard[RngBitGeneratorName]:
+    """Return whether a NumPy bit-generator name is checkpoint-compatible."""
+    return value in {"PCG64", "PCG64DXSM", "Philox", "SFC64", "MT19937"}
+####
+
+
 def _atomic_write_bytes(destination: Path, payload: bytes) -> None:
     temporary_path: Path | None = None
     try:
@@ -147,6 +153,9 @@ def _atomic_write_bytes(destination: Path, payload: bytes) -> None:
             temporary.write(payload)
             temporary.flush()
             fsync(temporary.fileno())
+        ####
+        if temporary_path is None:
+            raise RuntimeError("temporary checkpoint file was not created")
         ####
         replace(temporary_path, destination)
     finally:
@@ -246,7 +255,7 @@ class ImuModel:
             raise TypeError("checkpointing requires the built-in LinearThermalModel")
         ####
         bit_generator = type(self.rng.bit_generator).__name__
-        if bit_generator not in {"PCG64", "PCG64DXSM", "Philox", "SFC64", "MT19937"}:
+        if not _is_supported_bit_generator(bit_generator):
             raise TypeError(f"checkpointing does not support NumPy bit generator {bit_generator!r}")
         ####
         rng_state = _json_compatible(self.rng.bit_generator.state)
@@ -255,8 +264,8 @@ class ImuModel:
         ####
         return ImuModelCheckpoint(
             config=self.config,
-            rng_bit_generator=cast(RngBitGeneratorName, bit_generator),
-            rng_state=cast(dict[str, JsonValue], deepcopy(rng_state)),
+            rng_bit_generator=bit_generator,
+            rng_state=deepcopy(rng_state),
             accelerometer_turn_on_bias=_vector3_tuple(self._accel_turn_on_bias),
             gyroscope_turn_on_bias=_vector3_tuple(self._gyro_turn_on_bias),
             accelerometer_bias=_vector3_tuple(self._accel_bias),
@@ -276,7 +285,7 @@ class ImuModel:
     ####
 
     def restore(self, checkpoint: ImuModelCheckpoint) -> None:
-        """Replace model state with a previously captured checkpoint."""
+        """Replace the model state with a previously captured checkpoint."""
         if checkpoint.schema_version != 1:
             raise ValueError(f"unsupported checkpoint schema version: {checkpoint.schema_version}")
         ####

@@ -77,8 +77,8 @@ def allan_deviation(samples: ndarray, sample_period: float, cluster_sizes: ndarr
 
 def calc_cluster_sizes(sample_period: float, duration: float, points: int = 28) -> ndarray:
     minimum = sample_period
-    maximum = duration / 4.0
-    return unique(geomspace(minimum / sample_period, maximum / sample_period, points).astype(int).clip(1))
+    maximum_duration = duration / 4.0
+    return unique(geomspace(minimum / sample_period, maximum_duration / sample_period, points).astype(int).clip(1))
 ####
 
 def collect_profile_rates(profile: LoadedProfile, duration: float, seed: int) -> tuple[str, float, ndarray, ndarray]:

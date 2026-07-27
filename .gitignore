@@ -24,3 +24,10 @@ research/sources/
 research/artifacts/
 
 .idea/
+
+# Temproary
+tmp/
+temp/
+.tmp/
+.temp/
+archive/

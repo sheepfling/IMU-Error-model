@@ -4,7 +4,7 @@
 
 Future changes will be listed here.
 
-## 0.1.3 — planned
+## 0.1.3 — 2026-07-27
 
 - Ships versioned example profiles in the wheel with resource-based discovery
   and loading helpers.

@@ -135,16 +135,24 @@ def package_smoke() -> None:
         ####
         wheel = wheels[0]
         package_root = ROOT / "src"
-        expected_data = sorted(
+        expected_package_files = sorted(
             path.relative_to(package_root).as_posix()
             for path in (package_root / "imu_error_model").rglob("*")
-            if path.is_file() and path.suffix in {".json", ".jsonc", ".yaml", ".yml"}
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
         )
         with ZipFile(wheel) as archive:
             wheel_files = set(archive.namelist())
-        missing = sorted(path for path in expected_data if path not in wheel_files)
+        expected_files = set(expected_package_files)
+        missing = sorted(path for path in expected_files if path not in wheel_files)
         if missing:
             raise RuntimeError(f"wheel is missing package data: {', '.join(missing)}")
+        ####
+        unexpected = sorted(
+            path for path in wheel_files
+            if path.startswith("imu_error_model/") and path not in expected_files
+        )
+        if unexpected:
+            raise RuntimeError(f"wheel contains unexpected package files: {', '.join(unexpected)}")
         ####
         install_directory = temporary_root / "install"
         install_directory.mkdir()

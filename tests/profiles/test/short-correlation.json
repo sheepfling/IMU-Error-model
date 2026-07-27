@@ -1,0 +1,21 @@
+{
+  "accelerometer": {
+    "white_noise_density": 0.04,
+    "turn_on_bias_std": 0.0,
+    "bias_std": 0.02,
+    "bias_correlation_time": 0.5,
+    "flicker_bias_std": 0.0,
+    "measurement_range": null,
+    "apply_clipping": false,
+    "output_scale": 1.0
+  },
+  "gyroscope": {
+    "white_noise_density": 0.02,
+    "turn_on_bias_std": 0.0,
+    "bias_std": 0.01,
+    "bias_correlation_time": 0.5,
+    "measurement_range": null,
+    "apply_clipping": false,
+    "output_scale": 1.0
+  }
+}

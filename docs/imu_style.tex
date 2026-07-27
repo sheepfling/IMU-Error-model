@@ -1,0 +1,57 @@
+% Shared visual style for the repository's LaTeX documents.
+% Keep document-specific packages, metadata, and content in each source file.
+
+\usepackage[letterpaper,margin=0.86in,headheight=16pt,footskip=28pt]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs,tabularx,longtable,array}
+\usepackage[table]{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{enumitem}
+\usepackage{scrlayer-scrpage}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+
+\definecolor{ImuNavy}{HTML}{17324D}
+\definecolor{ImuBlue}{HTML}{2E6F9E}
+\definecolor{ImuTeal}{HTML}{168A8A}
+\definecolor{ImuOrange}{HTML}{D9792B}
+\definecolor{ImuGold}{HTML}{D9A441}
+\definecolor{ImuInk}{HTML}{1E252B}
+\definecolor{ImuSlate}{HTML}{52606D}
+\definecolor{ImuPale}{HTML}{EEF4F7}
+\definecolor{ImuPaleTeal}{HTML}{EAF6F5}
+\definecolor{ImuPaleGold}{HTML}{FFF7E6}
+\definecolor{ImuRule}{HTML}{CBD7DE}
+\definecolor{ImuCode}{HTML}{F5F7F8}
+
+\setkomafont{disposition}{\color{ImuNavy}\bfseries}
+\setkomafont{chapter}{\color{ImuNavy}\bfseries\LARGE}
+\setkomafont{section}{\color{ImuBlue}\bfseries\Large}
+\setkomafont{subsection}{\color{ImuTeal}\bfseries\large}
+\setkomafont{caption}{\small}
+\setkomafont{captionlabel}{\color{ImuNavy}\bfseries}
+\renewcommand*{\chapterformat}{%
+    \colorbox{ImuNavy}{\parbox[c][1.65em][c]{2.35em}{\centering\color{white}\thechapter}}\enskip
+}
+
+\clearpairofpagestyles
+\ihead{\textsc{IMU Error Model}}
+\ohead{\headmark}
+\cfoot*{\pagemark}
+\addtokomafont{pageheadfoot}{\small\color{ImuSlate}}
+\automark[section]{chapter}
+
+\setlist[itemize]{leftmargin=1.4em,itemsep=0.25em,topsep=0.35em}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=0.25em,topsep=0.35em}
+\renewcommand{\arraystretch}{1.18}
+\setlength{\tabcolsep}{3pt}
+\emergencystretch=1.5em
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcommand{\software}[1]{\texttt{#1}}

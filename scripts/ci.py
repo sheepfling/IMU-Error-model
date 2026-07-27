@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""Thin, cross-platform task runner used locally and by GitHub Actions."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+def run(*args: str) -> None:
+    command = [sys.executable, *args]
+    print("+", " ".join(command), flush=True)
+    environment = os.environ.copy()
+    source_path = str(ROOT / "src")
+    environment["PYTHONPATH"] = source_path + os.pathsep + environment.get("PYTHONPATH", "")
+    subprocess.run(command, cwd=ROOT, check=True, env=environment)
+####
+
+def test() -> None:
+    run("-m", "pytest", "-q")
+####
+
+def verify() -> None:
+    """Run source-backed profile and Allan-model regression checks."""
+    run("-m", "pytest", "-q", "tests/test_profile_verification.py", "tests/test_allan_parity.py")
+####
+
+def allan(duration: float, points: int) -> None:
+    """Regenerate the standard Allan-deviation analysis artifacts."""
+    run(
+        "examples/allan_variance.py",
+        "--duration",
+        str(duration),
+        "--points",
+        str(points),
+        "--profile",
+        "tests/profiles/test/short-correlation.json",
+        "--profile",
+        "tests/profiles/test/flicker-band.json",
+    )
+####
+
+def showcase(allan_duration: float, reconstruction_duration: float, temperature_points: int) -> None:
+    """Regenerate polished storefront-oriented showcase plots."""
+    run(
+        "examples/showcase.py",
+        "--allan-duration",
+        str(allan_duration),
+        "--reconstruction-duration",
+        str(reconstruction_duration),
+        "--temperature-points",
+        str(temperature_points),
+    )
+####
+
+def analysis(
+        duration: float,
+        points: int,
+        reconstruction_duration: float,
+        temperature_points: int,
+) -> None:
+    """Regenerate the complete analysis and showcase artifact bundle."""
+    allan(duration, points)
+    showcase(duration, reconstruction_duration, temperature_points)
+####
+
+def coverage() -> None:
+    run("-m", "coverage", "run", "-m", "pytest", "-q")
+    run("-m", "coverage", "report", "--fail-under=85")
+    run("-m", "coverage", "xml", "-o", "coverage.xml")
+####
+
+def lint() -> None:
+    run("-m", "ruff", "check", "src", "tests", "scripts", "examples")
+    run("scripts/check_scope_markers.py", "src", "scripts", "tests", "examples")
+####
+
+def format_sources() -> None:
+    run("scripts/format.py")
+####
+
+def markdown() -> None:
+    run("scripts/check_markdown.py")
+####
+
+def typecheck() -> None:
+    run("-m", "pyright", "src", "examples")
+    run("-m", "pyright", "-p", "pyright-testsconfig.json")
+####
+
+def build() -> None:
+    # The dev environment already contains the declared build frontend/backend.
+    # Avoiding a second isolated pip environment makes local builds work offline.
+    run("-m", "build", "--no-isolation", "--sdist", "--wheel")
+####
+
+def docs(build_pdf: bool) -> None:
+    sources = [
+        ROOT / "docs" / "imu_error_model.tex",
+        ROOT / "docs" / "imu_profile_showcase.tex",
+    ]
+    missing = [source for source in sources if not source.exists()]
+    if missing:
+        raise FileNotFoundError(missing[0])
+    ####
+    if not build_pdf:
+        for source in sources:
+            print(f"Documentation source present: {source}")
+        ####
+        return
+    ####
+    latex = shutil.which("latexmk") or shutil.which("pdflatex")
+    if latex is None:
+        raise RuntimeError("LaTeX builder not found; install latexmk/pdflatex or run docs without --build")
+    ####
+    output = ROOT / "docs" / "artifacts"
+    output.mkdir(parents=True, exist_ok=True)
+    for source in sources:
+        # Compile from the source directory so sibling inputs such as the
+        # shared style fragment and bibliography resolve for direct users too.
+        source_directory = source.parent
+        if Path(latex).name == "latexmk":
+            command = [latex, "-pdf", "-interaction=nonstopmode", "-halt-on-error", "-outdir=" + str(output),
+                       source.name]
+        else:
+            command = [latex, "-interaction=nonstopmode", "-halt-on-error", "-output-directory=" + str(output),
+                       source.name]
+        ####
+        print("+", " ".join(command), flush=True)
+        subprocess.run(command, cwd=source_directory, check=True)
+    ####
+####
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="task", required=True)
+    for name in ("test", "verify", "coverage", "lint", "format", "markdown", "typecheck", "build", "allan", "showcase",
+                 "analysis", "all"):
+        subparsers.add_parser(name)
+    ####
+    allan_parser = subparsers.choices["allan"]
+    allan_parser.add_argument("--duration", type=float, default=120.0, help="all-profile record duration in seconds")
+    allan_parser.add_argument("--points", type=int, default=24, help="number of logarithmic Allan points")
+    showcase_parser = subparsers.choices["showcase"]
+    showcase_parser.add_argument("--allan-duration", type=float, default=240.0)
+    showcase_parser.add_argument("--reconstruction-duration", type=float, default=60.0)
+    showcase_parser.add_argument("--temperature-points", type=int, default=120)
+    analysis_parser = subparsers.choices["analysis"]
+    analysis_parser.add_argument("--duration", type=float, default=240.0,
+                                 help="Allan and showcase record duration in seconds")
+    analysis_parser.add_argument("--points", type=int, default=24, help="number of logarithmic Allan points")
+    analysis_parser.add_argument("--reconstruction-duration", type=float, default=60.0)
+    analysis_parser.add_argument("--temperature-points", type=int, default=120)
+    docs_parser = subparsers.add_parser("docs")
+    docs_parser.add_argument("--build", action="store_true", help="compile the LaTeX PDF")
+    args = parser.parse_args()
+    if args.task == "test":
+        test()
+    elif args.task == "verify":
+        verify()
+    elif args.task == "allan":
+        if args.duration <= 0 or args.points < 2:
+            raise ValueError("Allan durations must be positive and points must be at least two")
+        ####
+        allan(args.duration, args.points)
+    elif args.task == "showcase":
+        if args.allan_duration <= 0 or args.reconstruction_duration <= 0 or args.temperature_points < 2:
+            raise ValueError("showcase durations must be positive and temperature-points must be at least two")
+        ####
+        showcase(args.allan_duration, args.reconstruction_duration, args.temperature_points)
+    elif args.task == "analysis":
+        if (
+                args.duration <= 0
+                or args.points < 2
+                or args.reconstruction_duration <= 0
+                or args.temperature_points < 2
+        ):
+            raise ValueError(
+                "analysis durations must be positive, points must be at least two, and temperature-points must be at least two"
+            )
+        ####
+        analysis(
+            args.duration,
+            args.points,
+            args.reconstruction_duration,
+            args.temperature_points,
+        )
+    elif args.task == "coverage":
+        coverage()
+    elif args.task == "lint":
+        lint()
+    elif args.task == "format":
+        format_sources()
+    elif args.task == "markdown":
+        markdown()
+    elif args.task == "typecheck":
+        typecheck()
+    elif args.task == "build":
+        build()
+    elif args.task == "docs":
+        docs(args.build)
+    else:
+        lint()
+        markdown()
+        typecheck()
+        verify()
+        coverage()
+        build()
+    ####
+    return 0
+####
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+####

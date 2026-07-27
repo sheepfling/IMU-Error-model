@@ -1,0 +1,90 @@
+# NOTIONAL EXAMPLE ONLY: all values below are approximate modeling estimates,
+# not official manufacturer settings, specifications, certification data, or
+# performance guarantees. References provide provenance, not authority.
+schema_version: 1
+model_name: SBG_PULSE_40
+sample_period_s: 0.0005
+metadata:
+  family: "pulse40"
+  vendor: "SBG Systems"
+  grade: "tactical"
+  revision: "May2025"
+  source_date: "2025-05-01"
+  sources:
+    - url: "https://www.sbg-systems.com/imu/pulse-40/"
+      date: "2025-05-01"
+      archive_urls:
+        - "https://web.archive.org/web/*/https://www.sbg-systems.com/imu/pulse-40/"
+        - "https://archive.is/?run=1&url=https%3A%2F%2Fwww.sbg-systems.com%2Fimu%2Fpulse-40%2F"
+    - url: "https://support.sbg-systems.com/sc/imu/latest/legacy-pulse-40-v1/performance-specifications"
+      date: "2025-05-01"
+      archive_urls:
+        - "https://web.archive.org/web/*/https://support.sbg-systems.com/sc/imu/latest/legacy-pulse-40-v1/performance-specifications"
+        - "https://archive.is/?run=1&url=https%3A%2F%2Fsupport.sbg-systems.com%2Fsc%2Fimu%2Flatest%2Flegacy-pulse-40-v1%2Fperformance-specifications"
+    - url: "https://www.sbg-systems.com/wp-content/uploads/Pulse-40_IMU-Leaflet.pdf"
+      date: "2025-05-01"
+      archive_urls:
+        - "https://web.archive.org/web/*/https://www.sbg-systems.com/wp-content/uploads/Pulse-40_IMU-Leaflet.pdf"
+        - "https://archive.is/?run=1&url=https%3A%2F%2Fwww.sbg-systems.com%2Fwp-content%2Fuploads%2FPulse-40_IMU-Leaflet.pdf"
+  tags: [ "baseline", "gyro_technology_mems_vibratory", "accel_technology_mems", "temperature_dependent" ]
+  active: true
+accelerometer:
+  # Measurement range +/-40 g
+  measurement_range: 392.266
+  # Scale factor error 100 ppm, over +/-1g, one-year accelerated aging
+  scale_factor: 0.0001
+  # Non-linearity (ppm of FS) 50 ppm, over +/-1g
+  nonlinear_factor: 0.00005
+  # Velocity Random Walk / Noise spectral density
+  # 40 ug/sqrt(Hz) = 3.92266e-4 m/s^1.5
+  white_noise_density: 0.000392266
+  # Long-term bias / bias repeatability
+  # midpoint (1500 + 1250) / 2 = 1375 ug
+  # 1375e-6 * g
+  turn_on_bias_std: 0.01348414375
+  # In-run bias instability
+  # 6 ug = 5.88399e-5 m/s^2
+  bias_std: 0.0000588399
+  # From Allan variance chart
+  bias_correlation_time: 250.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  # Scaling: 1048576 LSB per 1 m/s^2
+  output_scale: 1048576.0
+  reference_temperature_celsius: 25.0
+  thermal_bias_coefficient: [ 5.0e-4, 5.0e-4, 5.0e-4 ]
+  thermal_scale_factor_coefficient: [ 2.0e-5, 2.0e-5, 2.0e-5 ]
+  # Not modeled:
+  # - Cross-axis sensitivity
+  # - Vibration Rectification Coefficient (VRC)
+  # - Bandwidth
+  # - Sampling rate
+gyroscope:
+  # Measurement range +/-490 deg/s
+  measurement_range: 8.5521133348
+  # Scale factor error 1500 ppm
+  scale_factor: 0.0015
+  # Non-linearity 50 ppm
+  nonlinear_factor: 0.00005
+  # Noise spectral density
+  # 5.0 deg/h/sqrt(Hz) = 2.4240684055e-5 rad/s/sqrt(Hz)
+  white_noise_density: 0.000024240684055
+  # Long-term bias / bias repeatability
+  # 250 deg/h = 1.212034203e-3 rad/s
+  turn_on_bias_std: 0.001212034203
+  # In-run bias instability
+  # 0.8 deg/h = 3.8785094489e-6 rad/s
+  bias_std: 0.0000038785094489
+  bias_correlation_time: 300.0
+  apply_clipping: false
+  misalignment_std: 0.0
+  # Scaling: 67108864 LSB per 1 rad/s
+  output_scale: 67108864.0
+  reference_temperature_celsius: 25.0
+  thermal_bias_coefficient: [ 1.0e-4, 1.0e-4, 1.0e-4 ]
+  thermal_scale_factor_coefficient: [ 3.0e-5, 3.0e-5, 3.0e-5 ]
+  # Not modeled:
+  # - Cross-axis sensitivity
+  # - Vibration Rectification Coefficient (VRC)
+  # - Acceleration sensitivity
+  # - Bandwidth

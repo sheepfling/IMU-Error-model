@@ -1,0 +1,2751 @@
+\begin{filecontents*}{imu_error_model_references.bib}
+@article{allan1966,
+author  = {David W. Allan},
+title   = {Statistics of Atomic Frequency Standards},
+journal = {Proceedings of the IEEE},
+year    = {1966},
+volume  = {54},
+number  = {2},
+pages   = {221--230},
+doi     = {10.1109/PROC.1966.4634}
+}
+
+@techreport{riley2008,
+author      = {William J. Riley and David A. Howe},
+title       = {Handbook of Frequency Stability Analysis},
+institution = {National Institute of Standards and Technology},
+number      = {NIST Special Publication 1065},
+year        = {2008},
+doi         = {10.6028/NIST.SP.1065}
+}
+
+@article{elsheimy2008,
+author  = {Naser El-Sheimy and Haiying Hou and Xiaoji Niu},
+title   = {Analysis and Modeling of Inertial Sensors Using Allan Variance},
+journal = {IEEE Transactions on Instrumentation and Measurement},
+year    = {2008},
+volume  = {57},
+number  = {1},
+pages   = {140--149},
+doi     = {10.1109/TIM.2007.908635}
+}
+
+@techreport{woodman2007,
+author      = {Oliver J. Woodman},
+title       = {An Introduction to Inertial Navigation},
+institution = {University of Cambridge Computer Laboratory},
+number      = {UCAM-CL-TR-696},
+year        = {2007},
+doi         = {10.48456/tr-696}
+}
+
+@article{sola2017,
+author  = {Joan Sol\`a},
+title   = {Quaternion Kinematics for the Error-State Kalman Filter},
+journal = {arXiv preprint arXiv:1711.02508},
+year    = {2017},
+eprint  = {1711.02508},
+archiveprefix = {arXiv}
+}
+
+@book{barfoot2017,
+author    = {Timothy D. Barfoot},
+title     = {State Estimation for Robotics},
+publisher = {Cambridge University Press},
+year      = {2017},
+doi       = {10.1017/9781316671528}
+}
+
+@book{groves2013,
+author    = {Paul D. Groves},
+title     = {Principles of GNSS, Inertial, and Multisensor Integrated Navigation Systems},
+edition   = {2},
+publisher = {Artech House},
+year      = {2013}
+}
+
+@book{titterton2004,
+author    = {David H. Titterton and John L. Weston},
+title     = {Strapdown Inertial Navigation Technology},
+edition   = {2},
+publisher = {The Institution of Electrical Engineers},
+year      = {2004}
+}
+\end{filecontents*}
+
+\documentclass[11pt,oneside,headings=big]{scrreprt}
+
+\input{imu_style.tex}
+\usepackage{mathtools,bm}
+\usepackage{siunitx}
+\usepackage{listings}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,shapes.geometric,matrix}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{csquotes}
+\usepackage[backend=biber,style=ieee,sorting=none,maxbibnames=8]{biblatex}
+\addbibresource{imu_error_model_references.bib}
+\usepackage[nameinlink,noabbrev]{cleveref}
+\usepackage{bookmark}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=ImuBlue,
+    citecolor=ImuTeal,
+    urlcolor=ImuOrange,
+    pdftitle={IMU Error Model: Mathematical Specification, Software Contract, and Verification Guide},
+    pdfauthor={imu-error-model project},
+    pdfsubject={Three-axis accelerometer and gyroscope error simulation},
+    pdfkeywords={IMU, accelerometer, gyroscope, Allan deviation, Gauss-Markov, sensor error}
+}
+
+\sisetup{
+    detect-all,
+    per-mode=symbol,
+    exponent-product=\mathord{\times},
+    range-phrase=--,
+    range-units=single
+}
+\DeclareSIUnit\gzero{g_0}
+\DeclareSIUnit\ppm{ppm}
+\DeclareSIUnit\arcsec{arcsec}
+
+\newtcolorbox{boundarybox}[1][]{
+    enhanced,breakable,
+    colback=ImuPaleGold,colframe=ImuGold,
+    boxrule=0.8pt,arc=2pt,
+    left=8pt,right=8pt,top=7pt,bottom=7pt,
+    title={Model boundary},
+    fonttitle=\bfseries\color{ImuNavy},
+    #1
+}
+\newtcolorbox{implementationbox}[1][]{
+    enhanced,breakable,
+    colback=ImuPaleTeal,colframe=ImuTeal,
+    boxrule=0.8pt,arc=2pt,
+    left=8pt,right=8pt,top=7pt,bottom=7pt,
+    title={Normative implementation behavior},
+    fonttitle=\bfseries\color{ImuNavy},
+    #1
+}
+\newtcolorbox{engineeringbox}[1][]{
+    enhanced,breakable,
+    colback=ImuPale,colframe=ImuBlue,
+    boxrule=0.8pt,arc=2pt,
+    left=8pt,right=8pt,top=7pt,bottom=7pt,
+    title={Engineering note},
+    fonttitle=\bfseries\color{ImuNavy},
+    #1
+}
+\newtcolorbox{warningbox}[1][]{
+    enhanced,breakable,
+    colback=white,colframe=ImuOrange,
+    boxrule=1.0pt,arc=2pt,
+    borderline west={3pt}{0pt}{ImuOrange},
+    left=9pt,right=8pt,top=7pt,bottom=7pt,
+    title={Interpretation warning},
+    fonttitle=\bfseries\color{ImuOrange},
+    #1
+}
+
+\lstdefinestyle{imuPython}{
+    language=Python,
+    backgroundcolor=\color{ImuCode},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{ImuBlue}\bfseries,
+    commentstyle=\color{ImuSlate}\itshape,
+    stringstyle=\color{ImuTeal},
+    numbers=left,
+    numberstyle=\tiny\color{ImuSlate},
+    numbersep=8pt,
+    frame=single,
+    rulecolor=\color{ImuRule},
+    framerule=0.5pt,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    columns=fullflexible
+}
+
+\newcommand{\Rwb}[1][]{\mathbf{R}^{w}_{b#1}}
+\newcommand{\Rbw}[1][]{\mathbf{R}^{b#1}_{w}}
+\newcommand{\Exp}{\operatorname{Exp}}
+\newcommand{\Log}{\operatorname{Log}}
+\newcommand{\veeop}{(\cdot)^\vee}
+\newcommand{\skewmat}[1]{\left[#1\right]_{\times}}
+\newcommand{\Normal}{\mathcal{N}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\clip}{\operatorname{clip}}
+\newcommand{\round}{\operatorname{round}}
+\newcommand{\sat}{\operatorname{sat}}
+\newcommand{\Had}{\odot}
+\newcommand{\dd}{\,\mathrm{d}}
+\newcommand{\transpose}{\mathsf{T}}
+\newcommand{\vect}[1]{\bm{#1}}
+\newcommand{\mat}[1]{\bm{#1}}
+\newcommand{\field}[1]{\texttt{#1}}
+\newcommand{\pkg}{\texttt{imu-error-model}}
+
+\title{IMU Error Model}
+\subtitle{Mathematical Specification, Software Contract, and Verification Guide}
+\author{\pkg{} project}
+\date{\today}
+
+\begin{document}
+    \hypersetup{pageanchor=false}
+
+    \begin{titlepage}
+        \begin{tikzpicture}[remember picture,overlay]
+    \fill[ImuNavy] (current page.north west) rectangle ($(current page.north east)+(0,-1.35in)$);
+    \fill[ImuTeal] ($(current page.south west)+(0,0.34in)$) rectangle (current page.south east);
+    \draw[ImuRule,line width=0.8pt] ($(current page.north west)+(0.86in,-2.02in)$) -- ($(current page.north east)+(-0.86in,-2.02in)$);
+
+    \coordinate (O) at ($(current page.north east)+(-1.75in,-0.77in)$);
+    \draw[-{Latex[length=3.2mm]},line width=1.6pt,white] (O) -- ++(0.72,0) node[right,font=\small\bfseries] {$x_b$};
+    \draw[-{Latex[length=3.2mm]},line width=1.6pt,ImuGold] (O) -- ++(-0.30,0.58) node[above left,font=\small\bfseries] {$y_b$};
+    \draw[-{Latex[length=3.2mm]},line width=1.6pt,ImuOrange] (O) -- ++(0,-0.67) node[below,font=\small\bfseries] {$z_b$};
+        \end{tikzpicture}
+
+        \vspace*{1.58in}
+        {\color{ImuNavy}\fontsize{31}{35}\selectfont\bfseries IMU Error Model\par}
+        \vspace{0.28cm}
+        {\color{ImuSlate}\fontsize{17}{22}\selectfont Mathematical Specification, Software Contract,\par
+        and Verification Guide\par}
+
+        \vspace{0.78in}
+        \begin{tcolorbox}[
+            width=\textwidth,
+            colback=ImuPale,
+            colframe=ImuRule,
+            boxrule=0.6pt,
+            arc=2pt,
+            left=12pt,right=12pt,top=11pt,bottom=11pt]
+            \large
+            A frame-explicit, reproducible model for deterministic and stochastic errors in
+            three-axis accelerometer and gyroscope increments.
+        \end{tcolorbox}
+
+    \end{titlepage}
+    \clearpage
+    \hypersetup{pageanchor=true}
+    \pagenumbering{roman}
+
+
+    \chapter*{Abstract}
+    \addcontentsline{toc}{chapter}{Abstract}
+    The \pkg{} package converts an externally generated truth trajectory into
+    accelerometer and gyroscope increments corrupted by configurable deterministic
+    and stochastic sensor effects. The model is intentionally narrower than a
+    rigid-body simulator or inertial navigation system: it neither advances vehicle
+    dynamics nor reconstructs position, velocity, or attitude. Its responsibility is
+    to preserve a precise frame and sampling contract while applying scale-factor
+    error, nonlinearity, thermal effects, run-level misalignment, turn-on bias,
+    stationary Gauss--Markov drift, random walk, finite-band flicker-like bias,
+    correlated white noise, saturation, quantization, and output scaling.
+
+    This specification formalizes that transformation on the rotation group
+    $\mathrm{SO}(3)$, derives exact discrete-time stochastic updates, records the
+    units and state lifecycle, and connects model parameters to Allan-deviation and
+    power-spectral interpretations. It also supplies sensitivity Jacobians,
+    downstream navigation-error approximations, profile-construction guidance, and
+    a verification strategy suitable for deterministic unit tests and statistical
+    Monte Carlo regression. The result is both a mathematical reference for model
+    review and a practical contract for simulation, estimator, and controller
+    integration.
+
+    \begin{boundarybox}
+        The package corrupts truth measurements. It does not create truth, add gravity,
+        propagate an INS, estimate states, or certify a hardware device. Hardware-oriented
+        profiles included in this repository are notional research approximations,
+        estimated from public datasheets or other cited source material. Their source
+        links identify evidence used for parameter selection; they do not make the
+        resulting values authoritative, vendor-approved, certified, or guaranteed.
+    \end{boundarybox}
+
+    \tableofcontents
+    \listoffigures
+    \listoftables
+
+
+    \chapter*{Notation and conventions}
+    \addcontentsline{toc}{chapter}{Notation and conventions}
+    \begin{longtable}{@{}L{1.35in}L{1.45in}L{3.35in}@{}}
+        \caption{Principal notation used throughout the specification.}\label{tab:notation}\\
+        \toprule
+        \textbf{Symbol} & \textbf{Type / units} & \textbf{Meaning} \\
+        \midrule
+        \endfirsthead
+        \toprule
+        \textbf{Symbol} & \textbf{Type / units} & \textbf{Meaning} \\
+        \midrule
+        \endhead
+        $w,b$ & frames & World frame and body/sensor reference frame. \\
+        $\Rwb(t)$ & $\mathrm{SO}(3)$ & Rotation mapping body coordinates at time $t$ into world coordinates. \\
+        $\vect v^w(t)$ & \si{\meter\per\second} & Truth velocity supplied by the caller, with gravity excluded by contract. \\
+        $\Delta t_k$ & \si{\second} & Sample interval $t_{k+1}-t_k>0$. \\
+        $\Delta\vect v_{b,k}$ & \si{\meter\per\second} & Ideal body-start-frame velocity increment. \\
+        $\Delta\vect\theta_{b,k}$ & \si{\radian} & Ideal body-start-frame rotation vector. \\
+        $\vect u_{a,k}$ & \si{\meter\per\second\squared} & Ideal accelerometer rate $\Delta\vect v_{b,k}/\Delta t_k$. \\
+        $\vect u_{g,k}$ & \si{\radian\per\second} & Ideal gyroscope rate $\Delta\vect\theta_{b,k}/\Delta t_k$. \\
+        $s\in\{a,g\}$ & index & Accelerometer or gyroscope channel. \\
+        $\Had$ & operator & Hadamard, or elementwise, product. \\
+        $\skewmat{\vect x}$ & $\mathfrak{so}(3)$ & Skew-symmetric matrix satisfying $\skewmat{\vect x}\vect y=\vect x\times\vect y$. \\
+        $\Exp,\Log$ & maps & Exponential and logarithm maps between $\mathfrak{so}(3)$ and $\mathrm{SO}(3)$. \\
+        $\vect b_{\mathrm{on},s}$ & channel rate units & Turn-on bias sampled at reset and fixed for one run. \\
+        $\vect b_{s,k}$ & channel rate units & In-run Gauss--Markov or random-walk bias state. \\
+        $\vect f_{s,k}$ & channel rate units & Finite-band flicker-like bias approximation. \\
+        $\vect n_{s,k}$ & channel rate units & White rate-noise sample. \\
+        $\mat C_s$ & rate$^2\!\cdot$\si{\second} & Continuous-time three-axis white-noise covariance. \\
+        $N_s$ & rate$/\sqrt{\si{\hertz}}$ & Independent-axis white-noise density when $\mat C_s$ is not supplied. \\
+        $T$ & \si{\second} & Temperature-independent correlation time when used in a stochastic process; temperature is written $T_{\mathrm C}$. \\
+        $\vect\delta_s$ & channel rate units & Three-axis quantization step; a scalar is broadcast. \\
+        $L_s$ & channel rate units & Symmetric measurement range. \\
+        \bottomrule
+    \end{longtable}
+
+    \clearpage
+    \pagenumbering{arabic}
+
+
+    \chapter{Project overview}
+    \label{chap:overview}
+
+
+    \section{Purpose}
+    The model provides a controlled boundary between a truth-producing simulation and
+    algorithms that should operate on imperfect inertial measurements. A typical
+    closed-loop integration is
+    \begin{equation}
+        \text{equations of motion}
+        \longrightarrow \text{truth snapshot}
+        \longrightarrow \text{IMU error model}
+        \longrightarrow \text{estimator or controller}
+        \longrightarrow \text{command},
+    \end{equation}
+    where the controller never receives an uncorrupted state unless the test
+    explicitly asks for a truth-fed baseline.
+
+    The package is designed for robotics, aerospace simulation, inertial-navigation
+    research, estimator verification, and sensor-model validation. It is especially
+    useful when the equations of motion already exist and the missing capability is a
+    repeatable sensor boundary that can expose algorithms to realistic error
+    structure rather than a single ad hoc Gaussian perturbation.
+
+
+    \section{Model boundary}
+    \begin{table}[htbp]
+        \centering
+        \caption{Included and excluded responsibilities.}
+        \label{tab:scope}
+        \begin{tabularx}{\textwidth}{@{}Y Y@{}}
+\toprule
+\textbf{In scope} & \textbf{Out of scope} \\
+\midrule
+Body-frame accelerometer and gyroscope increments & Rigid-body force and moment integration \\
+Scale factor, radial nonlinearity, and thermal terms & Gravity, Earth rotation, Coriolis, and transport-rate models \\
+Run-level misalignment and turn-on repeatability & Strapdown navigation mechanization or sensor fusion \\
+White, correlated, Gauss--Markov, random-walk, and finite-band flicker-like errors & Hardware drivers, timestamp acquisition, or device communication \\
+Saturation, quantization, and output scaling & Vendor certification or guaranteed datasheet equivalence \\
+Reproducible stochastic state and analysis fixtures & Automatic calibration from laboratory data \\
+Protocol-based alternate model implementations & Magnetometer, GNSS, camera, or seeker measurement models \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+    \begin{implementationbox}
+        The public model consumes a timestamp, world-frame truth velocity with gravity
+        excluded, a proper body-to-world rotation matrix, and an optional temperature.
+        The first call initializes history and returns zero increments. Every later call
+        requires a strictly increasing timestamp and returns increments associated with
+        that exact interval.
+    \end{implementationbox}
+
+
+    \section{Signal path}
+    \Cref{fig:pipeline} summarizes the implemented transformation. Deterministic
+    terms operate on an ideal interval-average rate, stochastic terms maintain
+    state across samples, and output-electronics effects act before conversion back
+    to increments.
+
+    \begin{figure}[htbp]
+        \centering
+        \begin{tikzpicture}[
+            node distance=4mm,
+            block/.style={
+                draw=ImuRule,rounded corners=2pt,minimum height=28mm,
+                text width=26mm,align=center,fill=white,
+                font=\small,inner sep=5pt
+            },
+            arrow/.style={-{Latex[length=2.5mm]},line width=0.85pt,draw=ImuBlue}
+        ]
+  \node[block,fill=ImuPale] (truth) {\textbf{Truth snapshots}\\[2pt]
+      $t_k,\,\vect v^w_k,$\\$\Rwb(t_k),\,T_k$};
+  \node[block,right=of truth,fill=ImuPale] (kin) {\textbf{Kinematics}\\[2pt]
+      $\Delta\vect v_b$\\$\Delta\vect\theta_b$\\divide by $\Delta t$};
+  \node[block,right=of kin,fill=ImuPaleTeal] (det) {\textbf{Deterministic channel}\\[2pt]
+  thermal bias\\scale and nonlinearity\\run misalignment};
+  \node[block,right=of det,fill=ImuPaleGold] (stoch) {\textbf{Stochastic state}\\[2pt]
+  turn-on bias\\GM / random walk\\flicker + white noise};
+  \node[block,right=of stoch,fill=ImuPale] (out) {\textbf{Output electronics}\\[2pt]
+  clip\\quantize\\scale and integrate};
+  \draw[arrow] (truth) -- (kin);
+  \draw[arrow] (kin) -- (det);
+  \draw[arrow] (det) -- (stoch);
+  \draw[arrow] (stoch) -- (out);
+        \end{tikzpicture}
+        \caption{High-level measurement pipeline. The accelerometer and gyroscope use the
+        same channel structure but different physical units and independent
+        configurations.}
+        \label{fig:pipeline}
+    \end{figure}
+
+
+    \section{Design principles}
+    The implementation follows five principles.
+    \begin{enumerate}
+        \item \textbf{Frames are explicit.} Every vector is labeled by the frame in
+        which its coordinates are expressed. Rotation direction is encoded in the
+        public argument name \field{orientation\_world\_from\_body}.
+        \item \textbf{Continuous-time parameters have exact discrete-time mappings.}
+        White-noise density and Gauss--Markov correlation time remain meaningful when
+        the sample interval changes.
+        \item \textbf{Run-level and in-run uncertainty are separate.} Turn-on bias and
+        misalignment describe repeatability between resets; drift processes describe
+        evolution within one run.
+        \item \textbf{Nonlinear output effects are modeled where they occur.}
+        Saturation and quantization act on rates before the result is integrated into
+        an increment.
+        \item \textbf{Statistical behavior is testable.} The package exposes enough
+        structure to verify covariance, autocorrelation, Allan deviation, frame
+        invariance, and reset reproducibility independently.
+    \end{enumerate}
+
+
+    \chapter{Frames, rotations, and the truth-state contract}
+    \label{chap:truth}
+
+
+    \section{Rotation convention}
+    The rotation matrix
+    \begin{equation}
+        \Rwb(t)\in\mathrm{SO}(3),
+        \qquad
+        \mathrm{SO}(3)=\left\{\mat R\in\mathbb{R}^{3\times3}
+                           \mid \mat R^\transpose\mat R=\mat I,\ \det\mat R=1\right\},
+    \end{equation}
+    maps body-frame coordinates into world-frame coordinates:
+    \begin{equation}
+        \vect x^w = \Rwb(t)\vect x^b,
+        \qquad
+        \vect x^b = \Rwb(t)^\transpose\vect x^w.
+        \label{eq:frame-map}
+    \end{equation}
+    The transpose is the inverse because a proper rotation is orthogonal. This
+    convention agrees with the public name
+    \field{orientation\_world\_from\_body}; reversing it silently would change the
+    sign and frame of both channels.
+
+    For \(\vect\phi=[\phi_x,\phi_y,\phi_z]^\transpose\), define the hat operator
+    \begin{equation}
+        \skewmat{\vect\phi}=
+        \begin{bmatrix}
+            0 & -\phi_z & \phi_y\\
+            \phi_z & 0 & -\phi_x\\
+            -\phi_y & \phi_x & 0
+        \end{bmatrix},
+        \qquad
+        \skewmat{\vect\phi}\vect x=\vect\phi\times\vect x.
+    \end{equation}
+    Its inverse on skew-symmetric matrices is the vee operator. The exponential map
+    is given by Rodrigues' formula
+    \begin{equation}
+        \Exp\!\left(\skewmat{\vect\phi}\right)
+        =\mat I
+        +\frac{\sin\theta}{\theta}\skewmat{\vect\phi}
+        +\frac{1-\cos\theta}{\theta^2}\skewmat{\vect\phi}^{2},
+        \qquad \theta=\lVert\vect\phi\rVert_2,
+        \label{eq:rodrigues}
+    \end{equation}
+    with the limiting series used near \(\theta=0\). Conversely, for a relative
+    rotation \(\mat R\),
+    \begin{align}
+        \theta &= \cos^{-1}\!\left(\frac{\tr(\mat R)-1}{2}\right),\\
+        \Log(\mat R)^\vee
+        &=\frac{\theta}{2\sin\theta}
+        \begin{bmatrix}
+            R_{32}-R_{23}\\
+            R_{13}-R_{31}\\
+            R_{21}-R_{12}
+        \end{bmatrix},
+        \label{eq:so3-log}
+    \end{align}
+    away from the numerically delicate neighborhoods of \(0\) and \(\pi\). Robust
+    implementations use a small-angle series near zero and a diagonal-based branch
+    near \(\pi\) rather than evaluating \cref{eq:so3-log} literally
+    \cite{sola2017,barfoot2017}.
+
+
+    \section{Ideal interval increments}
+    Let the interval begin at \(t_k\) and end at \(t_{k+1}\), with
+    \begin{equation}
+        \Delta t_k=t_{k+1}-t_k>0.
+    \end{equation}
+    The ideal increments are
+    \begin{align}
+        \Delta\vect v_{b,k}
+        &=\Rwb(t_k)^\transpose
+        \left(\vect v^w(t_{k+1})-\vect v^w(t_k)\right),
+        \label{eq:ideal-dv}\\
+        \Delta\vect\theta_{b,k}
+        &=\Log\!\left(\Rwb(t_k)^\transpose\Rwb(t_{k+1})\right)^\vee.
+        \label{eq:ideal-dtheta}
+    \end{align}
+    Both are expressed in the body axes at the \emph{start} of the interval. The
+    corresponding interval-average rates are
+    \begin{equation}
+        \vect u_{a,k}=\frac{\Delta\vect v_{b,k}}{\Delta t_k},
+        \qquad
+        \vect u_{g,k}=\frac{\Delta\vect\theta_{b,k}}{\Delta t_k}.
+        \label{eq:ideal-rates}
+    \end{equation}
+
+    \begin{warningbox}
+        \(\Delta\vect v_{b,k}\) is not a world-frame velocity difference, and
+        \(\Delta\vect\theta_{b,k}\) is not a world-frame rotation vector. To express
+        an ideal or measured start-frame increment in world axes, multiply it by
+        \(\Rwb(t_k)\).
+    \end{warningbox}
+
+    The rotation increment in \cref{eq:ideal-dtheta} is coordinate-invariant with
+    respect to the world frame: premultiplying every attitude by one fixed world
+    rotation \(\mat S\in\mathrm{SO}(3)\) leaves
+    \begin{equation}
+        (\mat S\Rwb(t_k))^\transpose(\mat S\Rwb(t_{k+1}))
+        =\Rwb(t_k)^\transpose\Rwb(t_{k+1})
+    \end{equation}
+    unchanged. This identity is a high-value frame regression test.
+
+
+    \section{Gravity-excluded velocity contract}
+    The package does not evaluate a gravity model. The caller supplies
+    \(\vect v^w\) under the documented convention that gravity has already been
+    excluded from the truth quantity being differenced. Consequently, the model does
+    not add or subtract \(\vect g\), and it does not claim to reproduce a complete
+    specific-force mechanization.
+
+    \begin{boundarybox}
+        The input contract is intentionally simulation-facing. A physical accelerometer
+        measures specific force, while this package receives an already prepared truth
+        velocity signal and corrupts its interval change. The equations of motion or
+        truth adapter is responsible for making that signal consistent with the intended
+        experiment.
+    \end{boundarybox}
+
+
+    \section{Sampling semantics}
+    The first \software{measure} call establishes the previous timestamp, velocity,
+    and orientation and returns zero increments. A later call is valid only when
+    \(t_{k+1}>t_k\). The output records
+    \field{start\_time}, \field{end\_time}, and the derived \field{dt}; the reported
+    \field{delta\_v} and \field{delta\_theta} correspond exactly to that interval.
+
+    Endpoint differencing makes the contract easy to integrate with a time-stepped
+    simulation, but it does not perform explicit coning or sculling compensation.
+    When the body rotates substantially inside one interval, the caller should sample
+    at a sufficiently high rate or supply a specialized model that has access to
+    substep truth.
+
+
+    \section{Input validity}
+    A conforming implementation should reject or clearly diagnose
+    \begin{equation}
+        \Delta t_k\le 0,
+        \qquad
+        \lVert\mat R^\transpose\mat R-\mat I\rVert_F>\varepsilon_R,
+        \qquad
+        \det\mat R\le 0,
+    \end{equation}
+    as well as non-finite timestamps, vectors, matrices, temperatures, or
+    configuration values. If small orthogonality drift is tolerated, any projection
+    back to \(\mathrm{SO}(3)\) must be explicit; silently repairing arbitrary input
+    can conceal upstream simulation faults.
+
+    \begin{table}[htbp]
+        \centering
+        \caption{Public sample quantities and canonical units.}
+        \label{tab:public-units}
+        \begin{tabularx}{\textwidth}{@{}L{1.9in}L{1.7in}Y@{}}
+\toprule
+\textbf{Quantity} & \textbf{Unit} & \textbf{Interpretation} \\
+\midrule
+Timestamp & \si{\second} & Monotonic simulation time. \\
+Truth velocity & \si{\meter\per\second} & World-frame, gravity-excluded input. \\
+Orientation & dimensionless & Proper body-to-world rotation matrix. \\
+Temperature & \si{\degreeCelsius} & Optional per-sample environmental input. \\
+\field{delta\_v} & \si{\meter\per\second} & Corrupted velocity increment in body axes at interval start. \\
+\field{delta\_theta} & \si{\radian} & Corrupted rotation vector in body axes at interval start. \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+
+    \chapter{Implemented measurement model}
+    \label{chap:measurement}
+
+
+    \section{Channel-generic notation}
+    The accelerometer and gyroscope share one mathematical pipeline. Let
+    \(s\in\{a,g\}\) identify the channel, with ideal rate
+    \begin{equation}
+        \vect u_{s,k}=\begin{cases}
+                          \vect u_{a,k},&s=a,\\
+                          \vect u_{g,k},&s=g.
+        \end{cases}
+    \end{equation}
+    All vectors in this chapter are three-axis sensor quantities. Multiplication is
+    ordinary matrix multiplication unless \(\Had\) is shown.
+
+    Several configuration fields accept either one scalar or an explicit three-axis
+    value. A scalar is broadcast to all axes. In the current schema, scale-factor
+    error, turn-on bias standard deviation, in-run bias standard deviation, and
+    quantization step support this form. Anisotropic reset misalignment is expressed
+    by a positive-semidefinite rotation-vector covariance; the scalar
+    \field{misalignment\_std} remains an isotropic shortcut. White-noise
+    anisotropy and cross-axis correlation use \field{noise\_covariance}, while
+    thermal coefficients already support scalar or three-axis values.
+
+
+    \section{Thermal state}
+    For channel \(s\), define the temperature offset
+    \begin{equation}
+        \Delta T_{s,k}=T_k-T_{0,s},
+    \end{equation}
+    and the three configured thermal responses
+    \begin{align}
+        \vect\beta_{T,s,k}&=\vect c_{b,s}\,\Delta T_{s,k},
+        &&\text{thermal bias offset},\label{eq:thermal-bias}\\
+        \vect\lambda_{T,s,k}&=\vect 1+\vect c_{n,s}\,\Delta T_{s,k},
+        &&\text{white-noise multiplier},\label{eq:thermal-noise}\\
+        \vect\kappa_{T,s,k}&=\vect c_{\mathrm{sf},s}\,\Delta T_{s,k},
+        &&\text{scale-factor offset}.\label{eq:thermal-scale}
+    \end{align}
+    A scalar coefficient is broadcast to all axes; a three-vector acts elementwise.
+    The coefficient units are channel-rate units per \si{\degreeCelsius} for
+    \(\vect c_b\), and \si{\per\degreeCelsius} for \(\vect c_n\) and
+    \(\vect c_{\mathrm{sf}}\). The default reference temperature is
+    \SI{25}{\degreeCelsius}.
+
+    If temperature is unavailable, the thermal model returns the identity state
+    \begin{equation}
+        \vect\beta_{T,s,k}=\vect 0,
+        \qquad
+        \vect\lambda_{T,s,k}=\vect 1,
+        \qquad
+        \vect\kappa_{T,s,k}=\vect 0.
+        \label{eq:thermal-identity}
+    \end{equation}
+    The default linear model requires \(\vect\lambda_{T,s,k}\ge\vect0\)
+    componentwise so that a nominal standard deviation is not multiplied by a
+    negative factor.
+
+
+    \section{Scale factor and radial nonlinearity}
+    The implemented deterministic channel map is
+    \begin{equation}
+        \vect d_s(\vect u_{s,k},T_k)=
+        \vect u_{s,k}\Had
+        \left(\vect 1+\vect s_s+\vect\kappa_{T,s,k}\right)
+        \Had\left(\vect 1+n_s\lVert\vect u_{s,k}\rVert_2^2\vect 1\right)
+        +\vect\beta_{T,s,k}.
+        \label{eq:deterministic-map}
+    \end{equation}
+    Here \( \vect s_s \) is the fixed three-axis scale-factor coefficient and
+    \(n_s\) is a radial nonlinearity coefficient. A scalar scale factor is
+    broadcast to all axes. The radial form preserves the direction-dependent axis
+    scaling while making the nonlinear gain depend on the total input magnitude.
+
+    It is useful to define
+    \begin{equation}
+        \mat A_{s,k}=\diag\!\left(\vect1+\vect s_s+\vect\kappa_{T,s,k}\right),
+        \qquad
+        h_s(\vect u)=1+n_s\vect u^\transpose\vect u,
+    \end{equation}
+    so that
+    \begin{equation}
+        \vect d_s=\mat A_{s,k}\vect u_{s,k}h_s(\vect u_{s,k})
+        +\vect\beta_{T,s,k}.
+        \label{eq:deterministic-matrix}
+    \end{equation}
+    The local input Jacobian is then
+    \begin{equation}
+        \frac{\partial\vect d_s}{\partial\vect u}
+        =\mat A_{s,k}
+        \left[
+            h_s(\vect u)\mat I+2n_s\vect u\vect u^\transpose
+        \right].
+        \label{eq:deterministic-jacobian}
+    \end{equation}
+    This derivative is useful for calibration, sensitivity analysis, and explaining
+    why a large input can amplify even a modest nonlinear coefficient.
+
+
+    \section{Run-level misalignment}
+    At reset, the channel samples a small rotation vector
+    \begin{equation}
+        \vect\epsilon_s\sim\Normal(\vect0,\mat\Sigma_{\epsilon,s}),
+        \qquad
+        \mat\Sigma_{\epsilon,s}=m_s^2\mat I
+        \text{ for the isotropic scalar shortcut.}
+    \end{equation}
+    and constructs
+    \begin{equation}
+        \mat M_s=\Exp\!\left(\skewmat{\vect\epsilon_s}\right).
+        \label{eq:misalignment}
+    \end{equation}
+    The matrix remains fixed for the run. For small angles,
+    \begin{equation}
+        \mat M_s\vect d_s
+        \approx \vect d_s+\vect\epsilon_s\times\vect d_s
+        =\vect d_s-\skewmat{\vect d_s}\vect\epsilon_s,
+    \end{equation}
+    so the first-order sensitivity to misalignment is
+    \begin{equation}
+        \left.\frac{\partial(\mat M_s\vect d_s)}{\partial\vect\epsilon_s}
+        \right|_{\vect\epsilon_s=\vect0}
+        =-\skewmat{\vect d_s}.
+        \label{eq:misalignment-jacobian}
+    \end{equation}
+    A rotation preserves vector norm but couples signal from one axis into the
+    others; this is physically different from independent scale-factor error.
+
+
+    \section{Additive stochastic rate error}
+    After deterministic distortion and run-level misalignment, the model adds
+    \begin{equation}
+        \vect e_{s,k}
+        =\vect b_{\mathrm{on},s}
+        +\vect b_{s,k}
+        +\vect f_{s,k}
+        +\vect n_{s,k},
+        \label{eq:additive-error}
+    \end{equation}
+    which gives the pre-output rate
+    \begin{equation}
+        \vect r_{s,k}
+        =\mat M_s\vect d_s(\vect u_{s,k},T_k)+\vect e_{s,k}.
+        \label{eq:pre-output-rate}
+    \end{equation}
+    The stochastic terms are defined in \cref{chap:stochastic}. They are sampled in
+    sensor axes and are not rotated into the world frame.
+
+
+    \section{Saturation and quantization}
+    For a symmetric rate range \(L_s\),
+    \begin{equation}
+        \bar{\vect r}_{s,k}
+        =\clip(\vect r_{s,k},-L_s,L_s)
+        \label{eq:clip}
+    \end{equation}
+    componentwise. If no range is configured or \field{apply\_clipping} is false,
+    clipping is the identity. With a
+    positive three-axis quantization step \(\vect\delta_s\), where a
+    scalar value is broadcast to all axes,
+    \begin{equation}
+        \vect q_{s,k}
+        =\vect\delta_s\Had\round\!\left(\frac{\bar{\vect r}_{s,k}}{\vect\delta_s}\right),
+        \label{eq:quantization}
+    \end{equation}
+    and otherwise \(\vect q_{s,k}=\bar{\vect r}_{s,k}\).
+
+    Away from saturation and assuming round-to-nearest, quantization introduces the
+    componentwise bound
+    \begin{equation}
+        \lvert q_{s,k,i}-r_{s,k,i}\rvert\le\frac{\delta_{s,i}}{2}.
+        \label{eq:quant-bound}
+    \end{equation}
+    After integration, the corresponding increment bound is
+    \begin{equation}
+        \left\lvert\Delta y^{\mathrm{quant}}_{s,k,i}\right\rvert
+        \le \Delta t_k\,\lvert o_sO_s\rvert\frac{\delta_{s,i}}{2}.
+    \end{equation}
+    The exact quantizer is piecewise constant and therefore not differentiable at
+    thresholds; any smooth surrogate used in optimization is an approximation, not
+    the physical output rule.
+
+
+    \section{Reported increments}
+    Let \(o_s\) denote the channel output scale and \(O_s\) the corresponding global
+    \software{ImuConfig} output scale. The reported increments are
+    \begin{align}
+        \Delta\vect v^{\mathrm{meas}}_k
+        &=\Delta t_k\,o_aO_a\vect q_{a,k},\label{eq:reported-dv}\\
+        \Delta\vect\theta^{\mathrm{meas}}_k
+        &=\Delta t_k\,o_gO_g\vect q_{g,k}.
+        \label{eq:reported-dtheta}
+    \end{align}
+    Combining the stages gives the compact channel operator
+    \begin{equation}
+        \boxed{
+            \Delta\vect y^{\mathrm{meas}}_{s,k}
+            =\Delta t_k\,o_sO_s\,
+            \mathcal{Q}_{\vect\delta_s}\!\left(
+                                             \mathcal{C}_{L_s}\!\left[
+                                                                    \mat M_s\vect d_s(\vect u_{s,k},T_k)
+                    +\vect b_{\mathrm{on},s}+\vect b_{s,k}+\vect f_{s,k}+\vect n_{s,k}
+                \right]\right)
+        }
+        \label{eq:unified-model}
+    \end{equation}
+    where \(\mathcal{C}\) and \(\mathcal{Q}\) are the componentwise clip and
+    quantization operators. Equation~\eqref{eq:unified-model} is the central
+    normative model.
+
+    \begin{implementationbox}
+        The final output is an increment obtained from a corrupted rate. It is generally
+        not equal to the ideal kinematic increment plus one independently sampled
+        increment error because scale, nonlinearity, misalignment, clipping, and
+        quantization are nonlinear or multiplicative operations.
+    \end{implementationbox}
+
+
+    \section{Thermal sensitivity}
+    For the linear thermal model and fixed \(\vect u\), the deterministic rate
+    sensitivity is
+    \begin{equation}
+        \frac{\partial\vect d_s}{\partial T}
+        =h_s(\vect u)\diag(\vect u)\vect c_{\mathrm{sf},s}
+        +\vect c_{b,s}.
+        \label{eq:thermal-jacobian}
+    \end{equation}
+    Temperature also changes the white-noise covariance through
+    \(\vect\lambda_{T,s,k}\). Therefore a thermal sweep can alter both the mean and
+    the scatter of the measured output; validating only the average response is
+    insufficient.
+
+
+    \chapter{Stochastic error processes}
+    \label{chap:stochastic}
+
+
+    \section{Separation by time scale}
+    A useful IMU model separates errors by how they behave in time and across
+    resets. The package uses the decomposition in \cref{eq:additive-error} rather
+    than collapsing every uncertainty into one white Gaussian sample.
+
+    \begin{table}[htbp]
+        \centering
+        \caption{State and time-scale interpretation of additive error terms.}
+        \label{tab:stochastic-terms}
+        \begin{tabularx}{\textwidth}{@{}L{1.55in}L{1.5in}Y@{}}
+\toprule
+\textbf{Term} & \textbf{State lifecycle} & \textbf{Interpretation} \\
+\midrule
+Turn-on bias $\vect b_{\mathrm{on}}$ & Sampled once per reset & Run-to-run repeatability error; constant within a run. \\
+White noise $\vect n_k$ & Independent each interval & Short-time rate scatter specified by density or continuous covariance. \\
+Gauss--Markov bias $\vect b_k$ & Persistent, stationary & Correlated in-run drift with finite variance and correlation time. \\
+Random-walk bias $\vect b_k$ & Persistent, nonstationary & Integrated driving noise whose variance grows with elapsed time. \\
+Flicker-like bias $\vect f_k$ & Persistent, stationary sum & Finite-band approximation to a bias-instability plateau. \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+    This separation matters experimentally. A constant turn-on bias disappears from
+    an Allan-deviation curve computed within one uninterrupted run, while a
+    Gauss--Markov or flicker term remains visible through its time correlation.
+    Conversely, a reset ensemble exposes turn-on repeatability directly.
+
+
+    \section{Turn-on bias}
+    For each channel,
+    \begin{equation}
+        \vect b_{\mathrm{on},s}\sim
+        \Normal(\vect0,\sigma_{\mathrm{on},s}^{2}\mat I)
+        \label{eq:turn-on-bias}
+    \end{equation}
+    is sampled independently at reset and held fixed. Conditional on one run it is
+    a deterministic offset; across a population of resets it is a random variable.
+    If the configured implementation supports axis-dependent or correlated
+    repeatability, \(\sigma_{\mathrm{on}}^2\mat I\) can be replaced by a positive
+    semidefinite covariance matrix without changing the lifecycle semantics.
+
+
+    \section{White rate noise and sample-time scaling}
+    Let \(\vect w_s(t)\) be continuous white rate noise with covariance intensity
+    \(\mat Q_{c,s}\):
+    \begin{equation}
+        \E\!\left[\vect w_s(t)\vect w_s(t')^\transpose\right]
+        =\mat Q_{c,s}\,\delta(t-t').
+        \label{eq:white-continuous}
+    \end{equation}
+    The interval-average noise is
+    \begin{equation}
+        \vect n_{s,k}
+        =\frac{1}{\Delta t_k}\int_{t_k}^{t_{k+1}}\vect w_s(t)\dd t,
+    \end{equation}
+    which has covariance
+    \begin{align}
+        \Cov(\vect n_{s,k})
+        &=\frac{1}{\Delta t_k^2}
+        \int_{t_k}^{t_{k+1}}\!\int_{t_k}^{t_{k+1}}
+        \mat Q_{c,s}\delta(t-t')\dd t\dd t'\\
+        &=\frac{\mat Q_{c,s}}{\Delta t_k}.
+        \label{eq:white-discrete-cov}
+    \end{align}
+    Thus a scalar independent-axis density \(N_s\) produces
+    \begin{equation}
+        \vect n_{s,k}\sim
+        \Normal\!\left(\vect0,\frac{N_s^2}{\Delta t_k}\mat I\right),
+        \qquad
+        \operatorname{std}(n_{s,k,i})=\frac{N_s}{\sqrt{\Delta t_k}}.
+        \label{eq:white-density}
+    \end{equation}
+    After multiplying the rate by \(\Delta t_k\), the white-noise contribution to an
+    increment has standard deviation
+    \begin{equation}
+        \operatorname{std}(\Delta y^{\mathrm{white}}_{s,k,i})
+        =N_s\sqrt{\Delta t_k}.
+        \label{eq:increment-noise-scaling}
+    \end{equation}
+    This rate-versus-increment distinction is a common source of factor-of-
+    \(\sqrt{\Delta t}\) errors.
+
+
+    \section{Thermal and cross-axis covariance}
+    Define the thermal noise matrix
+    \begin{equation}
+        \mat\Lambda_{s,k}
+        =\diag(\vect\lambda_{T,s,k}).
+    \end{equation}
+    The implementation uses
+    \begin{equation}
+        \vect n_{s,k}\sim
+        \Normal\!\left(
+                     \vect0,
+                     \frac{\mat\Lambda_{s,k}\mat Q_{c,s}
+                         \mat\Lambda_{s,k}^{\transpose}}{\Delta t_k}
+        \right).
+        \label{eq:general-white}
+    \end{equation}
+    When \field{noise\_covariance} is absent,
+    \(\mat Q_{c,s}=N_s^2\mat I\). When it is supplied, that matrix replaces the
+    independent-axis density path.
+
+    A direct sampler can factor
+    \begin{equation}
+        \mat Q_{c,s}=\mat L_s\mat L_s^\transpose,
+        \qquad
+        \vect z_k\sim\Normal(\vect0,\mat I),
+    \end{equation}
+    and evaluate
+    \begin{equation}
+        \vect n_{s,k}
+        =\frac{1}{\sqrt{\Delta t_k}}
+        \mat\Lambda_{s,k}\mat L_s\vect z_k.
+        \label{eq:correlated-sampling}
+    \end{equation}
+    A positive-semidefinite eigendecomposition is preferable to an ordinary
+    Cholesky factor when a valid covariance is singular. Configuration validation
+    should reject materially negative eigenvalues while allowing small
+    floating-point residuals around zero.
+
+
+    \section{Stationary first-order Gauss--Markov bias}
+    A stationary first-order Gauss--Markov, or Ornstein--Uhlenbeck, process satisfies
+    \begin{equation}
+        \dd\vect b_s(t)
+        =-\frac{1}{T_s}\vect b_s(t)\dd t
+        +\sqrt{\frac{2\sigma_{b,s}^{2}}{T_s}}\dd\vect W(t),
+        \label{eq:ou-sde}
+    \end{equation}
+    For axis-specific standard deviations, define \(\mat\Sigma_{b,s}=\diag(\vect\sigma_{b,s}\Had\vect\sigma_{b,s})\), with the scalar case
+    represented by a multiple of the identity. The scalar equations below apply
+    componentwise; their matrix form uses \(\mat\Sigma_{b,s}\).
+    \begin{equation}
+        \E\!\left[\vect b_s(t)\vect b_s(t+\tau)^\transpose\right]
+        =\sigma_{b,s}^{2}e^{-\lvert\tau\rvert/T_s}\mat I.
+        \label{eq:ou-autocov}
+    \end{equation}
+
+    Exact discretization over a potentially variable interval gives
+    \begin{align}
+        \vect b_{s,k+1}
+        &=\phi_{s,k}\vect b_{s,k}+\vect\eta_{s,k},\\
+        \phi_{s,k}&=e^{-\Delta t_k/T_s},\\
+        \vect\eta_{s,k}
+        &\sim\Normal\!\left(
+                          \vect0,
+            (1-\phi_{s,k}^{2})\mat\Sigma_{b,s}
+        \right).
+        \label{eq:gm-discrete}
+    \end{align}
+    Initializing
+    \begin{equation}
+        \vect b_{s,0}\sim\Normal(\vect0,\mat\Sigma_{b,s})
+        \label{eq:gm-initial}
+    \end{equation}
+    starts the process in stationarity, avoiding an artificial warm-up transient.
+    The discrete lag-\(\ell\) covariance for fixed \(\Delta t\) is
+    \begin{equation}
+        \Cov(\vect b_k,\vect b_{k+\ell})
+        =\sigma_b^2\phi^{\lvert\ell\rvert}\mat I.
+        \label{eq:gm-discrete-autocov}
+    \end{equation}
+
+    \begin{engineeringbox}
+        The exact update in \cref{eq:gm-discrete} remains stable when the sample interval
+        changes. An Euler update, by contrast, can distort both stationary variance and
+        correlation when \(\Delta t/T\) is not very small.
+    \end{engineeringbox}
+
+
+    \section{Random-walk bias}
+    When no correlation time is configured, the same scalar-or-three-axis bias
+    parameter is interpreted as a random-walk driving standard deviation:
+    \begin{align}
+        \dd\vect b_s(t)&=\sigma_{\mathrm{rw},s}\dd\vect W(t),\\
+        \vect b_{s,k+1}&=\vect b_{s,k}+\vect\eta_{s,k},\\
+        \vect\eta_{s,k}&\sim
+        \Normal\!\left(\vect0,
+                     \sigma_{\mathrm{rw},s}^{2}\Delta t_k\mat I\right).
+        \label{eq:random-walk}
+    \end{align}
+    The process is nonstationary:
+    \begin{equation}
+        \Var(b_i(t))=\Var(b_i(0))+\sigma_{\mathrm{rw},s}^{2}t.
+        \label{eq:rw-variance}
+    \end{equation}
+    Therefore each component of \field{bias\_std} has different dimensional meaning
+    depending on whether a correlation time is present. A profile and its
+    documentation must state which interpretation applies.
+
+
+    \section{Finite-band flicker-like bias}
+    An ideal \(1/f\) process over an infinite frequency range is not a finite-variance
+    stationary process. The package instead sums \(K\) independent stationary
+    Gauss--Markov components,
+    \begin{equation}
+        \vect f_s(t)=\sum_{i=1}^{K}\vect x_{s,i}(t),
+        \qquad
+        T_i\in\operatorname{geomspace}(T_{\min},T_{\max},K),
+        \label{eq:flicker-sum}
+    \end{equation}
+    with
+    \begin{align}
+        \vect x_{i,k+1}&=\phi_{i,k}\vect x_{i,k}+\vect\eta_{i,k},\\
+        \phi_{i,k}&=e^{-\Delta t_k/T_i},\\
+        \vect\eta_{i,k}&\sim\Normal\!\left(
+                                         \vect0,s_i^2(1-\phi_{i,k}^2)\mat I\right).
+        \label{eq:flicker-components}
+    \end{align}
+    The two-sided angular-frequency power spectral density of one component is
+    \begin{equation}
+        S_{x_i}(\omega)=\frac{2s_i^2T_i}{1+\omega^2T_i^2}.
+        \label{eq:ou-psd}
+    \end{equation}
+    A logarithmic bank of such Lorentzian spectra can approximate a
+    \(1/\lvert\omega\rvert\) region between characteristic frequencies on the order
+    of \(1/T_{\max}\) and \(1/T_{\min}\). Outside that finite band, the spectrum
+    rolls off rather than remaining ideal flicker noise.
+
+    Let \(\mathcal A(v,T,\tau)\) denote the Allan variance of a stationary
+    Gauss--Markov component with stationary variance \(v\):
+    \begin{equation}
+        \mathcal A(v,T,\tau)=
+        \frac{
+            2v\left[T\tau-T^2(1-e^{-\tau/T})\right]
+            -vT^2(1-e^{-\tau/T})^2
+        }{\tau^2}.
+        \label{eq:gm-allan-function}
+    \end{equation}
+    At the geometric-center averaging time
+    \begin{equation}
+        \tau_c=\sqrt{T_{\min}T_{\max}},
+    \end{equation}
+    the implementation uses equal component standard deviations
+    \begin{equation}
+        s_i=\frac{\sigma_f}{
+            \sqrt{\displaystyle\sum_{\ell=1}^{K}
+                \mathcal A(1,T_\ell,\tau_c)}},
+        \qquad
+        \sigma_f=\field{flicker\_bias\_std}.
+        \label{eq:flicker-normalization}
+    \end{equation}
+    Consequently, \field{flicker\_bias\_std} is the target Allan deviation of the
+    \emph{sum} at \(\tau_c\), not the stationary standard deviation of one component.
+    Increasing \field{flicker\_components} smooths the approximation but does not
+    widen its configured time-constant band.
+
+
+    \section{Combined covariance and conditioning on a run}
+    Before clipping and quantization, and conditional on the persistent states, the
+    only new random term at interval \(k\) is white noise. Across a reset ensemble,
+    the instantaneous additive error covariance can be decomposed as
+    \begin{equation}
+        \Cov(\vect e_{s,k})
+        =\mat P_{\mathrm{on},s}
+        +\mat P_{b,s,k}
+        +\mat P_{f,s,k}
+        +\frac{\mat\Lambda_{s,k}\mat Q_{c,s}
+            \mat\Lambda_{s,k}^\transpose}{\Delta t_k},
+        \label{eq:combined-cov}
+    \end{equation}
+    provided the terms are independent. Within one initialized run,
+    \(\vect b_{\mathrm{on},s}\) is fixed and contributes to the conditional mean,
+    not to interval-to-interval conditional covariance. This distinction should be
+    preserved in uncertainty budgets and tests.
+
+
+    \section{Random-number ownership and reproducibility}
+    A stateful model should own or receive an explicit pseudo-random generator. A
+    fixed seed should reproduce the full reset state and subsequent sample sequence
+    for an identical call history. Reproducibility requires more than reseeding
+    white noise: turn-on bias, misalignment, Gauss--Markov initialization, and every
+    flicker component must draw from the same defined lifecycle.
+
+    Changing the sample schedule changes both the number of random draws and the
+    exact transition covariance. Therefore two runs with the same seed but different
+    sampling times are not expected to share pointwise values; they should share the
+    same configured continuous-time statistics.
+
+
+    \chapter{Sampling algorithm and state lifecycle}
+    \label{chap:algorithm}
+
+
+    \section{State carried by one model instance}
+    A model instance is logically associated with one sensor stream. Its mutable
+    state includes
+    \begin{itemize}
+        \item the previous timestamp, velocity, and orientation;
+        \item reset-level turn-on bias and misalignment for each channel;
+        \item the current Gauss--Markov or random-walk state;
+        \item all finite-band flicker component states; and
+        \item pseudo-random generator state.
+    \end{itemize}
+    Sharing one instance between unrelated vehicles or asynchronous streams would
+    mix their histories. Use one instance per logical IMU unless a specialized
+    implementation explicitly supports multiplexing.
+
+
+    \section{Reference interval algorithm}
+    \Cref{alg:measure} states the implemented lifecycle. The persistent bias and
+    flicker states are advanced using the current interval duration before they are
+    added to that interval's returned rate; the updated states therefore correspond
+    to the interval ending at the current timestamp.
+
+    \begin{algorithm}[htbp]
+\caption{Reference \software{measure} operation for one interval.}
+\label{alg:measure}
+\DontPrintSemicolon
+\KwIn{$t$, $\vect v^w$, $\Rwb$, optional $T_{\mathrm C}$}
+\KwOut{Measured $\Delta\vect v$, $\Delta\vect\theta$, interval metadata}
+Validate finite inputs and proper rotation matrix\;
+\eIf{history is uninitialized}{
+    Store $t$, $\vect v^w$, and $\Rwb$\;
+    Return zero increments with a zero-length initialization result\;
+}{
+    Set $\Delta t\leftarrow t-t_{\mathrm{prev}}$ and require $\Delta t>0$\;
+    Compute ideal increments using \cref{eq:ideal-dv,eq:ideal-dtheta}\;
+    Compute ideal channel rates using \cref{eq:ideal-rates}\;
+    \For{$s\in\{a,g\}$}{
+        Evaluate thermal state at $T_{\mathrm C}$\;
+        Form deterministic rate $\vect d_s$ and rotate by fixed $\mat M_s$\;
+        Advance Gauss--Markov/random-walk and flicker states using $\Delta t$\;
+        Sample white noise for this $\Delta t$\;
+        Add turn-on, in-run bias, flicker, and white terms\;
+        Apply clipping, quantization, output scaling, and integration\;
+    }
+    Store current truth as previous truth\;
+    Return both measured increments and $[t_{\mathrm{prev}},t]$ metadata\;
+}
+    \end{algorithm}
+
+    This ordering is part of the runtime contract: changing it changes seeded
+    outputs even when the stationary distributions remain the same. Equations,
+    tests, and saved seeds must use the same state-timing convention.
+
+
+    \section{Numerical considerations}
+
+    \subsection{Small rotations}
+    For \(\lVert\vect\phi\rVert\ll1\), use
+    \begin{align}
+        \frac{\sin\theta}{\theta}
+        &\approx1-\frac{\theta^2}{6}+\frac{\theta^4}{120},\\
+        \frac{1-\cos\theta}{\theta^2}
+        &\approx\frac12-\frac{\theta^2}{24}+\frac{\theta^4}{720}
+    \end{align}
+    in \cref{eq:rodrigues}. This avoids cancellation and preserves smooth behavior
+    at zero rotation.
+
+    \subsection{Correlation-time extremes}
+    When \(\Delta t/T\) is very small, evaluate
+    \begin{equation}
+        1-e^{-2\Delta t/T}
+        =-\operatorname{expm1}(-2\Delta t/T)
+    \end{equation}
+    with an \software{expm1}-style function to avoid subtracting nearly equal
+    numbers. When \(\Delta t/T\) is very large, \(\phi\) tends to zero and the next
+    state becomes an independent draw from the stationary distribution.
+
+    \subsection{Quantization and floating-point ties}
+    The exact tie-breaking behavior of \(\round\) should be documented because
+    banker's rounding and away-from-zero rounding differ at half-step inputs.
+    Regression fixtures should include positive and negative half-step cases.
+
+    \subsection{Temperature absence}
+    \software{None} is a semantic value meaning that temperature is unavailable; it
+    is not equivalent to \SI{0}{\degreeCelsius}. The output should preserve that
+    absence rather than inventing a temperature sample.
+
+
+    \section{Reset semantics}
+    A reset clears truth history and samples fresh run-level stochastic quantities.
+    The first post-reset measurement again initializes history and returns zero
+    increments. A deterministic test can compare two resets with the same seed;
+    a variability test can compare many seeds and verify the configured reset
+    ensemble covariance.
+
+
+    \chapter{Allan deviation and spectral interpretation}
+    \label{chap:allan}
+
+
+    \section{Estimator used by the analysis examples}
+    For equally spaced rate samples \(y_i\) with sample period \(\Delta t\), the
+    analysis uses non-overlapping blocks of \(m\) samples. With \(J\) complete block
+    means,
+    \begin{align}
+        \tau&=m\Delta t,\\
+        \bar y_j^{(m)}
+        &=\frac{1}{m}\sum_{i=jm}^{(j+1)m-1}y_i,\\
+        \widehat\sigma_A^2(\tau)
+        &=\frac{1}{2(J-1)}
+        \sum_{j=0}^{J-2}
+        \left(\bar y_{j+1}^{(m)}-\bar y_j^{(m)}\right)^2.
+        \label{eq:allan-estimator}
+    \end{align}
+    Only averaging times \(\tau=m\Delta t\) with at least two adjacent complete
+    blocks are defined. As \(\tau\) grows, \(J\) decreases and statistical
+    uncertainty rises. Allan analysis and its interpretation are described in
+    \cite{allan1966,riley2008,elsheimy2008}.
+
+
+    \section{Reference curves}
+    For independent white rate noise with density \(N\),
+    \begin{equation}
+        \sigma_A(\tau)=\frac{N}{\sqrt\tau},
+        \label{eq:allan-white}
+    \end{equation}
+    which has slope \(-1/2\) on log--log axes. For a rate random walk driven by
+    \(\sigma_{\mathrm{rw}}\),
+    \begin{equation}
+        \sigma_A(\tau)=\sigma_{\mathrm{rw}}\sqrt{\frac{\tau}{3}},
+        \label{eq:allan-rw}
+    \end{equation}
+    with slope \(+1/2\).
+
+    For the stationary Gauss--Markov process in \cref{eq:ou-sde},
+    \begin{equation}
+        \sigma_A^2(\tau)=\sigma_b^2\left[
+                                       \frac{2T}{\tau}
+                                       -\left(\frac{T}{\tau}\right)^2
+                                       \left(3-4e^{-\tau/T}+e^{-2\tau/T}\right)
+        \right].
+        \label{eq:allan-gm}
+    \end{equation}
+    Its limiting behavior is
+    \begin{align}
+        \sigma_A(\tau)
+        &\sim\sigma_b\sqrt{\frac{2\tau}{3T}},
+        &&\tau\ll T,\label{eq:gm-allan-small}\\
+        \sigma_A(\tau)
+        &\sim\sigma_b\sqrt{\frac{2T}{\tau}},
+        &&\tau\gg T.
+        \label{eq:gm-allan-large}
+    \end{align}
+    The process therefore rises with slope \(+1/2\), turns near its correlation
+    time, and falls with slope \(-1/2\).
+
+    \begin{figure}[htbp]
+        \centering
+        \begin{tikzpicture}
+            \begin{loglogaxis}
+                        [
+                        width=0.88\textwidth,
+                height=0.49\textwidth,
+                xmin=0.02,xmax=100,
+                ymin=0.07,ymax=8,
+                xlabel={Normalized averaging time $\tau/T$},
+                ylabel={Normalized Allan deviation},
+                grid=both,
+                major grid style={draw=ImuRule},
+                minor grid style={draw=ImuRule!55},
+                tick label style={font=\small},
+                label style={font=\small},
+                legend style={at={(0.5,-0.22)},anchor=north,legend columns=3,draw=none,font=\small}
+                    ]
+                    \addplot[ImuBlue,very thick,domain=0.02:100,samples=180] {x^(-0.5)};
+                    \addlegendentry{white rate noise}
+                    \addplot[ImuOrange,very thick,dashed,domain=0.02:100,samples=180] {sqrt(x/3)};
+                    \addlegendentry{rate random walk}
+                    \addplot[ImuTeal,very thick,domain=0.02:100,samples=220]
+                    {sqrt(2/x - (1/x)^2*(3 - 4*exp(-x) + exp(-2*x)))};
+                    \addlegendentry{stationary Gauss--Markov}
+            \end{loglogaxis}
+        \end{tikzpicture}
+        \caption{Normalized Allan-deviation signatures. Absolute levels depend on
+            $N$, $\sigma_{\mathrm{rw}}$, and $\sigma_b$; the plotted shapes emphasize slope
+            and turnover rather than a particular sensor.}
+        \label{fig:allan-reference}
+    \end{figure}
+
+    \begin{table}[htbp]
+        \centering
+        \caption{Expected Allan-deviation signatures for configured model terms.}
+        \label{tab:allan-signatures}
+        \begin{tabularx}{\textwidth}{@{}L{1.55in}L{1.65in}Y@{}}
+\toprule
+\textbf{Term} & \textbf{Signature} & \textbf{Important interpretation} \\
+\midrule
+White rate noise & $N/\sqrt\tau$; slope $-1/2$ & Verifies density and sample-time scaling. \\
+Rate random walk & $\sigma_{\mathrm{rw}}\sqrt{\tau/3}$; slope $+1/2$ & Nonstationary long-time growth. \\
+Gauss--Markov & Rise, turnover near $T$, then fall & Both stationary standard deviation and correlation time matter. \\
+Finite-band flicker sum & Approximately flat over configured band & \field{flicker\_bias\_std} targets the sum at $\tau_c$. \\
+Turn-on bias & No within-run contribution & Must be assessed across resets, not one Allan trace. \\
+Clipping / quantization & Signal- and level-dependent & Can break simple Gaussian power-law interpretations. \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+
+    \section{Addition of independent Allan variances}
+    If independent zero-mean processes sum,
+    \begin{equation}
+        y(t)=\sum_j y_j(t),
+    \end{equation}
+    then their Allan variances add:
+    \begin{equation}
+        \sigma_{A,y}^2(\tau)=\sum_j\sigma_{A,y_j}^2(\tau).
+        \label{eq:allan-addition}
+    \end{equation}
+    Their Allan \emph{deviations} do not add directly. This distinction is used in
+    \cref{eq:flicker-normalization} and should also be used when plotting analytic
+    reference envelopes for a composite configuration.
+
+
+    \section{Finite records and confidence}
+    For an idealized variance estimate with effective degrees of freedom \(\nu\), an
+    approximate two-sided \((1-\alpha)\) confidence interval is
+    \begin{equation}
+        \frac{\nu\widehat\sigma_A^2}
+        {\chi^2_{1-\alpha/2,\nu}}
+        \le \sigma_A^2\le
+        \frac{\nu\widehat\sigma_A^2}
+        {\chi^2_{\alpha/2,\nu}}.
+        \label{eq:allan-confidence}
+    \end{equation}
+    The effective \(\nu\) depends on estimator overlap and noise type, so
+    \cref{eq:allan-confidence} is a planning relation rather than a universal drop-in
+    formula. Regression tests should use tolerances informed by record length and
+    Monte Carlo scatter instead of requiring every empirical point to lie exactly on
+    an analytic curve.
+
+
+    \section{Bias-instability naming}
+    Datasheets and Allan-analysis references sometimes report a bias-instability
+    coefficient \(B\) related to a flat Allan-deviation level by a convention such as
+    \begin{equation}
+        \sigma_A\approx0.664 B.
+    \end{equation}
+    The package avoids silently imposing that convention:
+    \field{flicker\_bias\_std} is defined directly as an Allan-deviation target at
+    \(\tau_c\). A profile importer should record whether a source value is already an
+    Allan level or is a conventionally normalized coefficient before conversion.
+
+
+    \chapter{Downstream error growth and engineering interpretation}
+    \label{chap:propagation}
+
+
+    \section{Why separate error terms matter}
+    The package does not propagate a navigation solution, but the downstream effects
+    of its error terms explain why each parameter deserves an independent model.
+    For a conventional strapdown mechanization, a simplified linearized error system
+    has the form
+    \begin{align}
+        \delta\dot{\vect\theta}
+        &\approx-\vect b_g-\vect n_g,
+        \label{eq:attitude-error-dynamics}\\
+        \delta\dot{\vect v}
+        &\approx-\mat R\skewmat{\vect f}\,\delta\vect\theta
+        +\mat R(\vect b_a+\vect n_a),
+        \label{eq:velocity-error-dynamics}\\
+        \delta\dot{\vect p}&=\delta\vect v,
+        \label{eq:position-error-dynamics}
+    \end{align}
+    where signs and detailed transport terms depend on the chosen navigation-frame
+    convention. These relations are analytical context, not computations performed
+    by \pkg{} \cite{titterton2004,groves2013,woodman2007}.
+
+
+    \section{Constant-bias approximations}
+    Ignoring frame rotation and feedback, a constant accelerometer bias produces
+    \begin{align}
+        \delta\vect v(t)&\approx\vect b_a t,\\
+        \delta\vect p(t)&\approx\frac12\vect b_a t^2.
+        \label{eq:accel-bias-growth}
+    \end{align}
+    A constant gyroscope bias produces attitude error magnitude approximately
+    \begin{equation}
+        \lVert\delta\vect\theta(t)\rVert
+        \approx\lVert\vect b_g\rVert t.
+        \label{eq:gyro-bias-attitude}
+    \end{equation}
+    Near level flight, that tilt misprojects gravity into horizontal acceleration:
+    \begin{equation}
+        \delta\vect a_h(t)\approx\vect g\times\delta\vect\theta(t).
+        \label{eq:tilt-gravity}
+    \end{equation}
+    For a constant gyro bias and fixed gravity direction, the corresponding leading
+    position term scales cubically,
+    \begin{equation}
+        \delta\vect p_h(t)
+        \approx\frac16\left(\vect g\times\vect b_g\right)t^3,
+        \label{eq:gyro-bias-position}
+    \end{equation}
+    up to sign and frame convention. This mechanism is one reason small gyro errors
+    can dominate unaided inertial drift.
+
+
+    \section{White-noise covariance growth}
+    For one axis driven by continuous white accelerometer noise density \(N_a\),
+    \begin{align}
+        \Var(\delta v(t))&=N_a^2t,\\
+        \Var(\delta p(t))&=\frac{N_a^2t^3}{3}.
+        \label{eq:accel-white-growth}
+    \end{align}
+    For continuous white gyro rate noise density \(N_g\), direct attitude-error
+    variance grows as
+    \begin{equation}
+        \Var(\delta\theta(t))=N_g^2t.
+        \label{eq:gyro-white-growth}
+    \end{equation}
+    These formulas assume ideal continuous integration and no estimator correction,
+    but they provide useful order-of-magnitude checks for Monte Carlo experiments.
+
+
+    \section{Run-to-run versus time-varying uncertainty}
+    Suppose a simulation campaign runs the same trajectory repeatedly. A turn-on
+    bias shifts each run coherently, while white noise varies sample by sample. The
+    law of total covariance separates these effects:
+    \begin{equation}
+        \Cov(\vect y)
+        =\E\!\left[\Cov(\vect y\mid\vect b_{\mathrm{on}})\right]
+        +\Cov\!\left(\E[\vect y\mid\vect b_{\mathrm{on}}]\right).
+        \label{eq:total-covariance}
+    \end{equation}
+    The first term describes within-run scatter and the second run-to-run
+    repeatability. A validation campaign that never resets cannot estimate the
+    second term.
+
+    \begin{table}[htbp]
+        \centering
+        \caption{Leading unaided error-growth intuition under simplified assumptions.}
+        \label{tab:error-growth}
+        \begin{tabularx}{\textwidth}{@{}L{1.65in}L{1.55in}Y@{}}
+\toprule
+\textbf{Sensor error} & \textbf{Primary state effect} & \textbf{Leading growth} \\
+\midrule
+Constant accelerometer bias & Velocity, then position & $\delta v\propto t$, $\delta p\propto t^2$ \\
+Accelerometer white noise & Velocity random walk & $\operatorname{std}(\delta v)\propto t^{1/2}$; $\operatorname{std}(\delta p)\propto t^{3/2}$ \\
+Constant gyro bias & Attitude, gravity projection & $\delta\theta\propto t$; horizontal $\delta p\propto t^3$ in a level simplification \\
+Gyro white noise & Attitude random walk & $\operatorname{std}(\delta\theta)\propto t^{1/2}$ \\
+Scale factor & Signal-proportional error & Grows with maneuver magnitude and duration \\
+Misalignment & Cross-axis coupling & Depends on signal orthogonal to the affected axis \\
+Saturation & Information loss & Potentially unbounded downstream effect during clipped maneuvers \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+
+    \section{Implications for controller and estimator tests}
+    A useful campaign should not stop at a zero-motion Allan run. It should include
+    \begin{itemize}
+        \item static tests that isolate bias and white noise;
+        \item single-axis ramps that expose scale factor and quantization;
+        \item multi-axis rotations that expose misalignment and nonlinear coupling;
+        \item temperature sweeps that separate mean drift from noise-level change;
+        \item high-dynamic cases that exercise saturation; and
+        \item closed-loop scenarios that compare truth-fed, ideal-IMU, and corrupted-IMU
+        performance.
+    \end{itemize}
+    This layered approach identifies whether a failure originates in vehicle
+    dynamics, guidance and control, state estimation, or sensor corruption.
+
+
+    \chapter{Configuration, units, and profile construction}
+    \label{chap:configuration}
+
+
+    \section{Canonical-unit policy}
+    The runtime model expects configuration values in the canonical units below. The
+    loader validates values but does not perform unit conversion; conversion belongs
+    at the profile boundary, not deep inside stochastic updates. Temperature is an
+    explicit Celsius boundary quantity because the implemented thermal model uses
+    temperature differences. The recommended canonical units are shown in
+    \cref{tab:config-units}.
+
+    \begin{table}[htbp]
+        \centering
+        \caption{Recommended canonical units for model parameters.}
+        \label{tab:config-units}
+        \begin{tabularx}{\textwidth}{@{}L{1.7in}L{2.0in}Y@{}}
+\toprule
+\textbf{Parameter family} & \textbf{Accelerometer} & \textbf{Gyroscope} \\
+\midrule
+Rate and bias & \si{\meter\per\second\squared} & \si{\radian\per\second} \\
+White-noise density & \(\si{\meter\per\second\squared}/\sqrt{\si{\hertz}}\) & \(\si{\radian\per\second}/\sqrt{\si{\hertz}}\) \\
+Continuous covariance & $(\si{\meter\per\second\squared})^2\!\cdot\si{\second}$ & $(\si{\radian\per\second})^2\!\cdot\si{\second}$ \\
+Random-walk drive & \(\si{\meter\per\second\squared}/\sqrt{\si{\second}}\) & \(\si{\radian\per\second}/\sqrt{\si{\second}}\) \\
+Scale factor / nonlinearity gain & dimensionless / inverse rate squared & dimensionless / inverse rate squared; scale factor may be three-axis \\
+Misalignment & \si{\radian} or radians squared covariance & \si{\radian} or radians squared covariance \\
+Range and quantization & \si{\meter\per\second\squared} & \si{\radian\per\second}; quantization may be three-axis \\
+Thermal bias coefficient & \si{\meter\per\second\squared\per\degreeCelsius} & \si{\radian\per\second\per\degreeCelsius} \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+
+    \section{Common conversions}
+    The following conversions are useful when importing datasheet or laboratory
+    values:
+    \begin{align}
+        1\ \si{\degree\per\hour}
+        &=\frac{\pi}{180\cdot3600}\ \si{\radian\per\second},\\
+        1\ \si{\degree}/\sqrt{\si{\hour}}
+        &=\frac{\pi}{180\cdot60}\ \si{\radian}/\sqrt{\si{\second}},\\
+        1\ \si{\micro\gzero}/\sqrt{\si{\hertz}}
+        &=10^{-6}g_0\ \si{\meter\per\second\squared}/\sqrt{\si{\hertz}},\\
+        1\ \si{\ppm}&=10^{-6},\\
+        1\ \si{\arcsec}&=\frac{\pi}{180\cdot3600}\ \si{\radian}.
+        \label{eq:unit-conversions}
+    \end{align}
+    Use one documented value of standard gravity, conventionally
+    \(g_0=\SI{9.80665}{\meter\per\second\squared}\), throughout a profile conversion.
+
+
+    \section{Mapping source specifications to model terms}
+    \begin{table}[htbp]
+        \centering
+        \caption{Typical source metric to configuration mapping.}
+        \label{tab:profile-mapping}
+        \begin{tabularx}{\textwidth}{@{}L{1.8in}L{1.8in}Y@{}}
+\toprule
+\textbf{Source metric} & \textbf{Model term} & \textbf{Caution} \\
+\midrule
+Noise density / angle or velocity random walk & $N_s$ or $\mat Q_{c,s}$ & Confirm whether the source uses rate samples, integrated angle/velocity, one-sided PSD, or Allan normalization. \\
+Bias repeatability / turn-on bias & $\sigma_{\mathrm{on},s}$ & Usually a reset ensemble metric, not an in-run drift metric. \\
+Bias stability / in-run stability & GM and/or flicker parameters & One scalar rarely determines both stationary variance and correlation time; fit a curve when possible. \\
+Scale-factor error & $\vect s_s$ & Convert percent or ppm to dimensionless gain. Distinguish initial error from thermal coefficient and preserve axis dependence when available. \\
+Nonlinearity & $n_s$ & The package uses a radial quadratic gain; a vendor's definition may use full-scale percentage or a different polynomial. \\
+Axis alignment & $\mat\Sigma_{\epsilon,s}$ or a fixed calibration matrix & Convert angular units to radians and determine whether the source reports a rotation-vector covariance, one-sigma isotropic value, maximum, or calibrated residual. \\
+Measurement range & $L_s$ & Determine whether the published range is symmetric and whether clipping occurs before or after internal filtering. \\
+Digital resolution / LSB & $\vect\delta_s$ & Resolution, noise-free counts, and effective number of bits are not interchangeable; preserve per-axis LSBs when available. \\
+Temperature coefficient & $\vect c_b$, $\vect c_n$, $\vect c_{\mathrm{sf}}$ & Verify reference temperature, axis dependence, and whether the relation is linear over the intended range. \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+    \begin{warningbox}
+        Do not infer a Gauss--Markov correlation time from a bias-stability number alone.
+        Many pairs \((\sigma_b,T)\) can produce similar Allan levels over a limited
+        record. Preserve the source metric, fitting method, and assumptions in profile
+        metadata.
+    \end{warningbox}
+
+
+    \section{Profile provenance}
+    The format-neutral \software{load\_profile\_document} loader validates both
+    configuration and the descriptive metadata schema. It records profile
+    classification, review dates, source URLs, and optional archive links. For
+    unambiguous interpretation and reproducibility, profile provenance should also
+    preserve
+    \begin{itemize}
+        \item profile identifier and schema version;
+        \item source citations, page/table references, and retrieval date;
+        \item whether each value is authoritative, fitted, inferred, or purely
+        notional;
+        \item original value and units before conversion;
+        \item canonical value and conversion rule;
+        \item uncertainty convention: one-sigma, root-mean-square, maximum, typical,
+        or unknown;
+        \item applicable temperature, bandwidth, sample rate, and operating mode;
+        \item assumptions used to map source metrics into model parameters; and
+        \item license or redistribution constraints for embedded source material.
+    \end{itemize}
+
+    A useful evidence tier is
+    \begin{enumerate}
+        \item \textbf{Traceable source profile}: direct values with authoritative
+        citation and minimal interpretation.
+        \item \textbf{Fitted engineering profile}: parameters fitted to supplied
+        measurements or Allan data with documented residuals.
+        \item \textbf{Proxy profile}: engineering estimate based on a comparable
+        device or class.
+        \item \textbf{Test fixture}: intentionally synthetic values chosen to isolate
+        one implementation behavior.
+    \end{enumerate}
+    The repository's hardware-oriented examples are notional unless their metadata
+    establishes otherwise.
+
+
+    \section{Positive-semidefinite covariance construction}
+    For per-axis densities \(N_x,N_y,N_z\) and a correlation matrix
+    \(\mat P\), define
+    \begin{equation}
+        \mat D_N=\diag(N_x,N_y,N_z),
+        \qquad
+        \mat Q_c=\mat D_N\mat P\mat D_N.
+        \label{eq:covariance-construction}
+    \end{equation}
+    A valid correlation matrix is symmetric, has unit diagonal, and is positive
+    semidefinite. Pairwise correlations inside \([-1,1]\) are necessary but not
+    sufficient for a valid three-axis matrix; validate eigenvalues after assembly.
+
+
+    \section{Worked conversion example}
+    Consider an illustrative gyro source reporting
+    \begin{equation}
+        N_g=0.20\ \si{\degree}/\sqrt{\si{\hour}},
+        \qquad
+        \sigma_{\mathrm{on}}=5\ \si{\degree\per\hour},
+        \qquad
+        s_g=500\ \si{\ppm}.
+    \end{equation}
+    The canonical values are
+    \begin{align}
+        N_g
+        &=0.20\frac{\pi}{180\cdot60}
+        \approx5.82\times10^{-5}\,\si{\radian}/\sqrt{\si{\second}},\\
+        \sigma_{\mathrm{on}}
+        &=5\frac{\pi}{180\cdot3600}
+        \approx\SI{2.42e-5}{\radian\per\second},\\
+        s_g&=500\times10^{-6}=5.0\times10^{-4}.
+    \end{align}
+    These numbers are pedagogical only. A real profile must retain the source's
+    statistical conventions and operating conditions.
+
+
+    \chapter{Software contract and integration guidance}
+    \label{chap:software}
+
+
+    \section{Public concepts}
+    The source contract names four central concepts:
+    \begin{description}
+        \item[\software{ImuModelProtocol}]
+        A structural interface for any stateful implementation that accepts truth
+        samples and returns IMU increments.
+        \item[\software{ImuConfig}]
+        Top-level configuration, including global output scaling and channel
+        configuration.
+        \item[\software{ImuOutput}]
+        Output carrying \field{delta\_v}, \field{delta\_theta}, interval timestamps,
+        derived \field{dt}, and \field{temperature\_celsius} when available.
+        \item[Thermal model]
+        A configured channel object exposing
+        \software{evaluate(temperature\_celsius)}. Coefficients are bound at
+        construction, not passed on every evaluation.
+        \item[\software{ImuErrorProcessEstimate}]
+        A stateless, estimator-facing characterization of configured sensor noise,
+        persistent-error transitions, priors, and increment covariances.
+    \end{description}
+    Alternate implementations satisfy \software{ImuModelProtocol} through structural
+    typing, allowing high-fidelity, hardware-specific, or accelerated models to
+    replace the default without changing consumers.
+
+
+    \section{Conceptual integration}
+    The following listing is intentionally schematic; exact import paths and
+    constructors belong in generated API documentation. It emphasizes the lifecycle
+    and frame contract.
+
+    \begin{lstlisting}[style=imuPython,caption={Conceptual integration with a truth-producing simulation.},label={lst:integration}]
+model = configured_imu_model
+model.reset()  # samples run-level bias and misalignment
+
+# The first call establishes history and returns zero increments.
+output_0 = model.measure(
+    timestamp=t_0,
+    velocity_without_gravity=velocity_world_0,
+    orientation_world_from_body=rotation_world_from_body_0,
+    temperature_celsius=temperature_0,
+)
+
+# Each later call returns the increment over the preceding interval.
+output_1 = model.measure(
+    timestamp=t_1,
+    velocity_without_gravity=velocity_world_1,
+    orientation_world_from_body=rotation_world_from_body_1,
+    temperature_celsius=temperature_1,
+)
+
+estimator.propagate(
+    delta_v_body_start=output_1.delta_v,
+    delta_theta_body_start=output_1.delta_theta,
+    dt=output_1.dt,
+)
+    \end{lstlisting}
+
+
+    \section{Placement in a time-stepped simulation}
+    For a controller that must act on sensed rather than truth state, one useful step
+    ordering is
+    \begin{enumerate}
+        \item the equations of motion expose the truth snapshot at the sampling epoch;
+        \item the IMU error model converts the previous and current snapshots into
+        corrupted increments;
+        \item the estimator updates its internal state from those increments and any
+        other measurements;
+        \item guidance and control operate on the estimated state; and
+        \item the equations of motion advance using the commanded actuation.
+    \end{enumerate}
+    This ordering prevents a controller from inadvertently seeing end-of-step truth
+    before it makes the decision associated with that step. The exact scheduler may
+    use begin-step or end-step sampling, but the timestamp and interval convention
+    must remain consistent.
+
+    \begin{figure}[htbp]
+        \centering
+        \begin{tikzpicture}[
+            node distance=8mm and 13mm,
+            block/.style={draw=ImuRule,rounded corners=2pt,fill=white,
+            minimum height=11mm,text width=33mm,align=center,font=\small},
+            arrow/.style={-{Latex[length=2.5mm]},line width=0.85pt,draw=ImuBlue}
+        ]
+  \node[block,fill=ImuPale] (eom) {Equations of motion\\truth at $t_k$};
+  \node[block,right=of eom,fill=ImuPaleTeal] (imu) {IMU error model\\$\Delta\vect v,\Delta\vect\theta$};
+  \node[block,right=of imu,fill=ImuPale] (est) {Estimator\\sensed state};
+  \node[block,below=of est,fill=ImuPaleGold] (ctl) {Guidance / controller\\command};
+  \node[block,left=of ctl,fill=ImuPale] (act) {Actuator / plant input};
+  \draw[arrow] (eom) -- (imu);
+  \draw[arrow] (imu) -- (est);
+  \draw[arrow] (est) -- (ctl);
+  \draw[arrow] (ctl) -- (act);
+  \draw[arrow] (act) -| (eom);
+        \end{tikzpicture}
+        \caption{Recommended closed-loop placement: truth is converted to sensor
+        increments before estimator and controller logic execute.}
+        \label{fig:closed-loop}
+    \end{figure}
+
+
+    \section{State ownership and concurrency}
+    Because measurement history and stochastic processes are mutable, a model
+    instance is not a pure function of the current sample. Consumers should
+    \begin{itemize}
+        \item create one instance per logical sensor stream;
+        \item serialize calls in timestamp order;
+        \item avoid sharing an instance between Monte Carlo trials;
+        \item reset explicitly between runs; and
+        \item capture configuration, seed, and sample schedule in reproducibility
+        metadata.
+    \end{itemize}
+    Thread safety should not be assumed unless a concrete implementation documents
+    its synchronization behavior.
+
+
+    \section{Extension points}
+    A custom model can preserve the public contract while adding, for example,
+    \begin{itemize}
+        \item a measured frequency-response or anti-aliasing filter;
+        \item full calibration matrices rather than scalar scale factors;
+        \item cross-channel accelerometer--gyro correlation;
+        \item temperature-state dynamics and thermal lag;
+        \item vibration rectification, gyro g-sensitivity, or shock recovery;
+        \item coning and sculling corrections using substep truth; or
+        \item hardware replay and hybrid measured/simulated channels.
+    \end{itemize}
+    Such features should be isolated behind the protocol rather than weakening the
+    meaning of existing fields.
+
+
+    \chapter{Stateless error-process characterization}
+    \label{chap:characterization}
+
+    The stateful model is appropriate when a simulation needs a realized stochastic
+    trajectory. Estimators and covariance studies need a different contract: they
+    need to know what the configured sensor process says is statistically plausible,
+    without advancing a model instance or drawing a particular bias realization.
+    The public function
+    \software{characterize\_imu\_error\_process} provides that contract.
+
+    \begin{tcolorbox}[
+        enhanced,breakable,colback=ImuPaleTeal,colframe=ImuTeal,
+        title={Pure characterization contract},fonttitle=\bfseries]
+        \begin{lstlisting}[style=imuPython]
+if imu_output.dt > 0.0:
+    noise = characterize_imu_error_process(
+        config=imu_config,
+        dt=imu_output.dt,
+        process_age_at_interval_start_s=(
+            imu_output.start_time - initialization_time
+        ),
+        temperature_celsius=imu_output.temperature_celsius,
+        include_quantization_approximation=False,
+    )
+        \end{lstlisting}
+        The function performs no random-number generation, does not inspect a live
+        \software{ImuModel}, does not depend on a realized turn-on or current bias, and
+        does not mutate its configuration. Equal inputs produce equal statistics.
+        The function requires finite \software{dt > 0} and
+        \software{process\_age\_at\_interval\_start\_s >= 0}. The zero-duration output
+        from the first \software{measure} call is an initialization sentinel and is not a
+        valid characterization interval. Temperature is explicitly in degrees Celsius.
+    \end{tcolorbox}
+
+
+    \section{Process-age and state-timing convention}
+    Let $a_k\ge0$ be the modeled process age at the start of an interval and let
+    $a_{k+1}=a_k+\Delta t_k$. The age origin is the first truth sample after
+    construction or reset, because that call initializes history without advancing
+    in-run stochastic states; it is not necessarily wall-clock time since
+    \software{reset()} was called.
+
+    The runtime sampler advances persistent bias and flicker states before applying
+    them to the returned rate. Consequently,
+    \begin{equation}
+        \boldsymbol\xi_{k+1}
+        =\mat\Phi_s(\Delta t_k)\boldsymbol\xi_k+\vect\eta_k,
+        \qquad
+        \vect e^p_{s,k}=\mat H_s\boldsymbol\xi_{k+1}.
+        \label{eq:characterization-timing}
+    \end{equation}
+    The end-of-interval state, not the start prior, affects interval $k$.
+
+
+    \section{Returned statistics and ordering}
+    The result contains one channel estimate for the accelerometer and one for the
+    gyroscope. Each channel exposes
+    \begin{itemize}
+        \item the configured continuous white-noise covariance \(\mat Q_{c,s}\);
+        \item interval-average rate covariance;
+        \item direct fresh-noise covariance for the next reported increment;
+        \item conditional and marginal increment covariance;
+        \item deterministic temperature-dependent rate offset and its increment mean;
+        \item the persistent-state transition, process covariance, start and end
+        priors, state labels/slices, and output measurement matrix;
+        \item the increment--state-innovation cross-covariance required by an exact
+        discrete augmented filter; and
+        \item metadata describing omitted effects and approximations.
+    \end{itemize}
+    The combined six-dimensional covariance uses the fixed ordering
+    \begin{equation}
+        \begin{bmatrix}
+            \Delta v_x & \Delta v_y & \Delta v_z &
+            \Delta\theta_x & \Delta\theta_y & \Delta\theta_z
+        \end{bmatrix}^{\mathsf T}.
+    \end{equation}
+    The current configuration has no accelerometer--gyroscope cross-covariance, so
+    the combined covariance is block diagonal. The package reports sensor-domain
+    statistics; the navigation filter remains responsible for mapping them through
+    its own state-transition and noise-input matrices.
+
+    \begin{table}[htbp]
+        \centering
+        \caption{Estimator-facing outputs of the stateless characterization.}
+        \label{tab:characterization-outputs}
+        \begin{tabularx}{\textwidth}{@{}L{1.95in}L{1.42in}Y@{}}
+\toprule
+\textbf{Output family} & \textbf{Typical symbol} & \textbf{Use} \\
+\midrule
+Continuous white covariance & $\mat Q_{c,s}$ & Canonical sensor-rate spectral covariance. \\
+Interval-average rate covariance & $\mat R^r_{w,s}$ & Fresh rate-noise covariance over the requested sample interval. \\
+Persistent-state transition & $\mat\Phi_s(\Delta t)$ & Exact propagation of turn-on, in-run, and flicker state blocks. \\
+Persistent process covariance & $\mat Q_s(\Delta t)$ & New uncertainty injected into those persistent blocks. \\
+Reset and elapsed-time prior & $\vect\mu_{\xi,s}(t),\mat P_{\xi,s}(t)$ & Configuration-only prior, not a realized bias estimate. \\
+Conditional increment covariance & $\mat R^{\Delta}_{s,\mathrm{cond}}$ & Fresh white noise plus optional quantization approximation when bias states are carried. \\
+Marginal increment covariance & $\mat P^{\Delta}_{s,\mathrm{marg}}$ & One-interval uncertainty envelope when persistent states are omitted. \\
+Known and omitted terms & metadata & Makes temperature context and signal-dependent exclusions explicit. \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+
+    \section{Persistent statistical state}
+    For channel \(s\), the persistent state is represented as three-axis blocks:
+    \begin{equation}
+        \boldsymbol\xi_s=
+        \begin{bmatrix}
+            \vect b_{\mathrm{on},s}^{\mathsf T} &
+            \vect b_s^{\mathsf T} &
+            \vect x_{1,s}^{\mathsf T} &\cdots&
+            \vect x_{K,s}^{\mathsf T}
+        \end{bmatrix}^{\mathsf T}.
+        \label{eq:characterization-state}
+    \end{equation}
+    Disabled blocks are omitted. The blocks that remain are respectively the
+    turn-on bias, the in-run Gauss--Markov or random-walk bias, and the finite-band
+    OU components used to approximate flicker bias. The returned
+    \software{state\_block\_labels}, \software{state\_block\_slices}, and
+    \software{measurement\_matrix} make the state layout explicit:
+    \begin{equation}
+        \vect e_s=\mat H_s\boldsymbol\xi_s
+    \end{equation}
+    is the additive persistent rate error seen by the channel. The exact
+    discrete-time characterization for one future interval is
+    \begin{equation}
+        \boldsymbol\xi_{k+1}
+        =\mat\Phi_s(\Delta t)\boldsymbol\xi_k+\vect\eta_k,
+        \qquad
+        \vect\eta_k\sim\Normal(\vect0,\mat Q_s(\Delta t)).
+        \label{eq:characterization-discrete-state}
+    \end{equation}
+
+    For a stationary Gauss--Markov block with correlation time \(T_b\),
+    \begin{align}
+        \phi_b&=\exp(-\Delta t/T_b),\\
+        \mat\Phi_b(\Delta t)&=\phi_b\mat I,\\
+        \mat Q_b(\Delta t)&=(1-\phi_b^2)\mat \Sigma_b.
+        \label{eq:characterization-gm}
+    \end{align}
+    For a random-walk block, \software{bias\_std} is the driving standard
+    deviation in sensor units per square root second, and
+    \begin{equation}
+        \mat\Phi_b(\Delta t)=\mat I,
+        \qquad
+        \mat Q_b(\Delta t)=\mat \Sigma_{\mathrm{rw}}\Delta t,
+        \qquad \mat \Sigma_{\mathrm{rw}}=\diag(\vect\sigma_{\mathrm{rw}}\Had\vect\sigma_{\mathrm{rw}}).
+        \label{eq:characterization-rw}
+    \end{equation}
+    The returned \software{persistent.transition} and
+    \software{persistent.process\_covariance} are block-diagonal matrices for the
+    full state in \cref{eq:characterization-state}. The convenience properties
+    \software{bias\_transition} and \software{bias\_process\_covariance} select the
+    three-axis in-run bias block for an estimator that carries only that bias.
+
+    The random-walk density and an initial bias standard deviation have different
+    units and are not interchangeable. In the current schema the random-walk state
+    starts at a known zero state; reset uncertainty is represented by the separate
+    turn-on block. Its covariance therefore grows as
+    \begin{equation}
+        \mat P_{\mathrm{rw}}(t)=\mat Q_{c,\mathrm{rw}}t,
+        \qquad \mat P_{\mathrm{rw}}(0)=\mat0.
+    \end{equation}
+    A future explicit initial-covariance field may add uncertain random-walk
+    initialization without overloading the driving density.
+
+
+    \section{Start and end priors}
+    The characterization exposes the reset prior and both the start and end prior
+    \((\boldsymbol\mu_{\xi,0},\mat P_{\xi,0})\) and the prior at the supplied
+    elapsed time. The convenience properties
+    \software{initial\_bias\_mean}/\software{initial\_bias\_covariance} and
+    \software{prior\_bias\_mean}/\software{prior\_bias\_covariance} apply the
+    returned output matrix to those two full-state priors. For a time-invariant
+    block model,
+    \begin{align}
+        \boldsymbol\mu_{\xi,k+1}^{-}&=\mat\Phi_s(\Delta t_k)\boldsymbol\mu_{\xi,k},\\
+        \mat P_{\xi,k+1}^{-}&=\mat\Phi_s(\Delta t_k)\mat P_{\xi,k}
+        \mat\Phi_s(\Delta t_k)^{\mathsf T}+\mat Q_s(\Delta t_k).
+        \label{eq:characterization-prior}
+    \end{align}
+    The configured mean is zero for these stochastic blocks. The reported start and
+    end priors are not claims about the realized current bias; a live bias depends on
+    reset draws and history, while a filter posterior additionally depends on
+    external observations.
+    Temperature-dependent deterministic bias is returned separately as
+    \software{deterministic\_rate\_offset} and
+    \software{deterministic\_increment\_mean}, rather than being confused with a
+    random current-bias estimate.
+
+
+    \section{White-noise and increment covariance}
+    Let \(\mat\Lambda_s\) be the diagonal thermal noise multiplier and let
+    \(\mat S_s\) be the product of channel and global output scales. The covariance
+    of the interval-average rate white noise is
+    \begin{equation}
+        \mat R^r_{w,s}
+        =\frac{\mat\Lambda_s\mat Q_{c,s}\mat\Lambda_s^{\mathsf T}}{\Delta t}.
+        \label{eq:characterization-rate-covariance}
+    \end{equation}
+    The direct covariance of the reported increment is therefore
+    \begin{equation}
+        \mat R^\Delta_{w,s}
+        =\Delta t^2\mat S_s\mat R^r_{w,s}\mat S_s^{\mathsf T}
+        =\Delta t\mat S_s\mat\Lambda_s\mat Q_{c,s}
+        \mat\Lambda_s^{\mathsf T}\mat S_s^{\mathsf T}.
+        \label{eq:characterization-direct-covariance}
+    \end{equation}
+    This is the covariance for fresh independent white noise on the next
+    \(\Delta\vect v\) or \(\Delta\vect\theta\) sample.
+
+
+    \section{Conditional, joint, and marginal covariance}
+    The \software{direct\_increment\_covariance} contains fresh white noise and,
+    when requested, the high-resolution quantization approximation. Because the
+    state is advanced before use, the start-conditioned covariance also includes
+    the persistent innovation generated during the interval:
+    \begin{align}
+        \mat B_{s,k}&=\Delta t_k\mat S_s\mat H_s,\\
+        \mat R^\Delta_{s\mid\xi_k}
+        &=\mat R^\Delta_{d,s}+\mat B_{s,k}\mat Q_s\mat B_{s,k}^{\mathsf T},\\
+        \mat C_{\Delta\eta,s}&=\mat B_{s,k}\mat Q_s.
+        \label{eq:characterization-joint-blocks}
+    \end{align}
+    The returned \software{increment\_state\_process\_cross\_covariance} is the
+    matrix $\mat C_{\Delta\eta,s}$ required when a discrete augmented filter
+    injects increment noise and persistent-state process noise separately.
+    The corresponding local joint covariance, ordered as increment error followed
+    by persistent-state innovation, is
+    \begin{equation}
+        \mat{\mathcal Q}_{s,k}^{\mathrm{joint}}=
+        \begin{bmatrix}
+            \mat R^\Delta_{d,s}+\mat B_{s,k}\mat Q_s\mat B_{s,k}^{\mathsf T}
+            &\mat B_{s,k}\mat Q_s\\
+            \mat Q_s\mat B_{s,k}^{\mathsf T}&\mat Q_s
+        \end{bmatrix}.
+        \label{eq:characterization-joint}
+    \end{equation}
+
+    The \software{marginal\_increment\_covariance} additionally integrates over
+    the uncertainty in the persistent prior:
+    \begin{equation}
+        \mat P^\Delta_{s,\mathrm{marg}}(a_{k+1})
+        =\mat R^\Delta_{d,s}
+        +\mat B_{s,k}\mat P_{\xi,s,k+1}^{-}\mat B_{s,k}^{\mathsf T}.
+        \label{eq:characterization-marginal}
+    \end{equation}
+    This is useful as a one-step uncertainty envelope when the filter does not
+    carry those persistent states. It must not be treated as fresh independent
+    noise at every sample: the persistent contribution remains correlated across
+    time.
+
+    For two different intervals, the persistent contribution has a nonzero
+    cross-covariance. In a time-invariant channel, for $t_j>t_k$,
+    \begin{equation}
+        \Cov(\Delta\vect y^p_{s,k},\Delta\vect y^p_{s,j})
+        =\Delta t_k\Delta t_j\,
+        \mat S_s\mat H_s\mat P_{\xi,s}(t_k)
+        \mat\Phi_s(t_j-t_k)^\transpose
+        \mat H_s^\transpose\mat S_s^\transpose.
+        \label{eq:characterization-cross-covariance}
+    \end{equation}
+    Fresh white noise contributes only to the same interval. Turn-on bias has a
+    non-decaying correlation, while Gauss--Markov and flicker components decay
+    according to their transitions; random-walk correlation evolves
+    nonstationarily. This is why the marginal covariance is an envelope rather
+    than a replacement for an augmented colored-error state.
+
+    \begin{tcolorbox}[
+        enhanced,breakable,colback=ImuPaleGold,colframe=ImuGold,
+        title={Kalman-filter rule},fonttitle=\bfseries]
+        For an augmented error-state filter, use the conditional increment covariance
+        for fresh sensor noise and propagate the explicit bias state with its returned
+        transition and process covariance. Do not also add the full marginal bias
+        covariance to every IMU sample. Doing both double-counts the same uncertainty
+        and incorrectly turns colored bias into independent white noise.
+    \end{tcolorbox}
+
+    \begin{lstlisting}[style=imuPython,caption={Augmented-filter use of sensor-domain statistics.},label={lst:characterization-filter}]
+noise = characterize_imu_error_process(
+    config=imu_config,
+    dt=imu_output.dt,
+    process_age_at_interval_start_s=process_age_s,
+    temperature_celsius=imu_output.temperature_celsius,
+)
+estimator.propagate_imu(
+    delta_v_body_start=imu_output.delta_v,
+    delta_theta_body_start=imu_output.delta_theta,
+    dt=imu_output.dt,
+    direct_increment_covariance=noise.direct_increment_covariance,
+    accel_bias_transition=noise.accelerometer.persistent.bias_transition,
+    accel_bias_process_covariance=(
+        noise.accelerometer.persistent.bias_process_covariance
+    ),
+    gyro_bias_transition=noise.gyroscope.persistent.bias_transition,
+    gyro_bias_process_covariance=(
+        noise.gyroscope.persistent.bias_process_covariance
+    ),
+    increment_state_process_cross_covariance=(
+        noise.increment_state_process_cross_covariance
+    ),
+)
+    \end{lstlisting}
+
+
+    \section{Continuous-time filter ownership}
+    For an error-state filter with local dynamics
+    \begin{equation}
+        \dot{\delta\vect x}
+        =\mat F(t)\delta\vect x+\mat G(t)\vect w(t),
+        \qquad
+        \E[\vect w(t)\vect w(t')^\transpose]
+        =\mat Q_c\delta(t-t'),
+        \label{eq:characterization-filter-dynamics}
+    \end{equation}
+    the complete navigation-state discrete covariance is
+    \begin{equation}
+        \mat Q_{d,k}
+        =\int_0^{\Delta t_k}
+        \mat\Phi_x(\Delta t_k,\tau)\mat G(\tau)\mat Q_c
+        \mat G(\tau)^\transpose
+        \mat\Phi_x(\Delta t_k,\tau)^\transpose\,\dd\tau.
+        \label{eq:characterization-filter-covariance}
+    \end{equation}
+    The matrices in this expression depend on the filter's state ordering, nominal
+    attitude, specific force, angular rate, gravity model, and discretization. The
+    IMU package therefore owns sensor-domain $\mat Q_c$, persistent-state
+    $\mat\Phi$ and $\mat Q$, priors, and increment covariances; the filter owns
+    the mapping into its full navigation-state covariance.
+
+    For a stationary Gauss--Markov bias, the corresponding continuous state model
+    can be written
+    \begin{equation}
+        \mat A_b=-\frac{1}{T_b}\mat I,
+        \qquad
+        \mat Q_{c,b}=\frac{2}{T_b}\mat\Sigma_b,
+        \label{eq:characterization-gm-continuous}
+    \end{equation}
+    while a random walk uses
+    \begin{equation}
+        \mat A_b=\mat0,
+        \qquad
+        \mat Q_{c,b}=\mat Q_{c,\mathrm{rw}}.
+        \label{eq:characterization-rw-continuous}
+    \end{equation}
+    The exact local blocks returned by the characterization may be consumed
+    directly, or the filter may use these continuous terms in its own Van Loan or
+    numerical discretization.
+
+
+    \section{Deliberate exclusions and filter ownership}
+    The function characterizes effects that can be determined from configuration,
+    time, and the explicitly supplied temperature. It identifies the following
+    effects in metadata rather than inventing a covariance:
+    \begin{itemize}
+        \item scale factor and radial nonlinearity, which depend on nominal input
+        rate;
+        \item misalignment covariance, which depends on the current deterministic
+        signal;
+        \item clipping, which is nonlinear and signal-dependent;
+        \item exact quantization behavior, which depends on bin phase and signal
+        motion;
+        \item realized turn-on and current bias; and
+        \item thermal offset and scaling when no temperature is supplied.
+    \end{itemize}
+    When requested and when a quantization step is configured, the common
+    high-resolution approximation is added to the conditional covariance:
+    \begin{equation}
+        \mat R^r_q\approx\frac{1}{12}\diag\left(\vect\delta_s\Had\vect\delta_s\right),
+        \qquad \vect\delta_s=\field{quantization\_step}.
+        \label{eq:characterization-quantization}
+    \end{equation}
+    A scalar configuration value is broadcast to all three axes; a three-axis
+    value preserves distinct per-axis quantization steps.
+    The complete navigation-state covariance remains filter-owned. For filter state
+    transition \(\mat\Phi_x\), noise-input matrix \(\mat G_k\), and continuous
+    noise covariance \(\mat Q_c\), the filter computes, for example,
+    \begin{equation}
+        \mat Q_{d,k}=\int_0^{\Delta t}
+        \mat\Phi_x(\Delta t-\tau)\mat G_k\mat Q_c\mat G_k^{\mathsf T}
+        \mat\Phi_x(\Delta t-\tau)^{\mathsf T}\,d\tau.
+    \end{equation}
+    Those matrices depend on the filter's nominal attitude, specific force, angular
+    rate, gravity model, and state ordering. The IMU package owns sensor-domain
+    \(\mat Q_c\), persistent-state \(\mat\Phi\) and \(\mat Q\), priors, and
+    increment covariances; it cannot produce the full navigation covariance from
+    configuration alone.
+
+    \begin{table}[htbp]
+        \centering
+        \caption{Effects that configuration-only characterization deliberately does not
+        treat as fresh Gaussian covariance.}
+        \label{tab:characterization-limits}
+        \begin{tabularx}{\textwidth}{@{}L{1.55in}Y Y@{}}
+\toprule
+\textbf{Effect} & \textbf{Why configuration and time are insufficient} & \textbf{Treatment} \\
+\midrule
+Scale and radial nonlinearity & The error depends on the nominal channel rate. & Keep the configured terms as deterministic model parameters or linearize them in the filter when the nominal signal is available. \\
+Misalignment & The output covariance depends on the current deterministic signal. & Map a misalignment prior through a signal-dependent Jacobian. \\
+Clipping & Saturation is nonlinear and signal-dependent. & Treat the Gaussian covariance as invalid near the configured measurement range. \\
+Exact quantization & Bin phase and signal motion determine whether the error is uniform, deterministic, or correlated. & Use only the opt-in $\delta^2/12$ high-resolution approximation. \\
+Thermal deterministic offset & A value requires temperature; thermal lag would require additional state. & Evaluate the memoryless model only when Celsius temperature is supplied and keep the offset separate from stochastic bias. \\
+Realized current bias & It depends on reset draws, process history, and filter observations. & Obtain it from live state for diagnostics or from the estimator posterior; never infer it from configuration alone. \\
+\bottomrule
+        \end{tabularx}
+    \end{table}
+
+
+    \section{Implementation architecture}
+    The stateful sampler and stateless characterization must describe the same
+    process. The intended dependency direction is
+    \begin{equation}
+        \text{validated configuration}
+        \longrightarrow
+        \begin{cases}
+            \text{shared exact transition helpers},\\
+            \text{stateful sampler using those helpers},\\
+            \text{stateless characterization using those helpers}.
+        \end{cases}
+    \end{equation}
+    In particular, Gauss--Markov, random-walk, and flicker transition parameters,
+    as well as flicker-component construction and calibration, are shared with the
+    sampler. The characterization returns newly assembled arrays, so callers can
+    consume its matrices without mutating configuration or model-owned state. Its
+    thermal evaluation uses the built-in \software{LinearThermalModel}; a custom
+    \software{ThermalModel} supplied to \software{ImuModel} is not recoverable from
+    \software{ImuConfig} and is therefore outside this config-only contract.
+
+    For efficiency, model construction compiles immutable configuration vectors and
+    covariance matrices into cached, read-only NumPy arrays. The sampler reuses
+    these arrays for scale factors, bias standard deviations, thermal coefficients,
+    quantization steps, and covariance inputs rather than rebuilding them for every
+    sample. This cache is an implementation detail: temperature-dependent thermal
+    states and timestep-dependent stochastic transitions are still evaluated when
+    their inputs change, and the serialized Pydantic configuration remains the
+    source of truth.
+
+
+    \chapter{Verification and validation plan}
+    \label{chap:verification}
+
+
+    \section{Verification philosophy}
+    The strongest evidence comes from a hierarchy of tests:
+    \begin{enumerate}
+        \item exact deterministic identities;
+        \item distribution and covariance tests for isolated stochastic terms;
+        \item time-correlation and Allan-signature tests;
+        \item mixed-effect Monte Carlo cases;
+        \item integration tests with a simple dead-reckoning consumer; and
+        \item end-to-end closed-loop scenarios.
+    \end{enumerate}
+    No single Allan plot proves the full model. Conversely, unit tests that only
+    exercise formulas at one time step do not establish long-term stochastic
+    behavior.
+
+
+    \section{Deterministic tests}
+    A zero-error configuration should satisfy
+    \begin{align}
+        \Delta\vect v^{\mathrm{meas}}_k&=\Delta\vect v_{b,k},\\
+        \Delta\vect\theta^{\mathrm{meas}}_k&=\Delta\vect\theta_{b,k}
+        \label{eq:zero-error-identity}
+    \end{align}
+    within floating-point tolerance when output scales are unity and clipping and
+    quantization are disabled.
+
+    Frame tests should include
+    \begin{itemize}
+        \item identity attitude and a known world velocity step;
+        \item a \SI{90}{\degree} body rotation that maps one world axis into another;
+        \item invariance of relative rotation under a fixed world-frame rotation;
+        \item positive and negative small-angle increments; and
+        \item rotations near \(\pi\), where logarithm implementations are most
+        numerically delicate.
+    \end{itemize}
+
+    For each deterministic error stage, use basis-vector and mixed-axis inputs to
+    verify scale, nonlinearity, thermal bias, thermal scale, and misalignment
+    independently. Finite differences can check \cref{eq:deterministic-jacobian,eq:misalignment-jacobian,eq:thermal-jacobian} away from clip and quantization
+    boundaries.
+
+
+    \section{White-noise tests}
+    For \(N\) independent rate samples at fixed \(\Delta t\), estimate
+    \begin{equation}
+        \widehat{\mat Q}_c
+        =\Delta t\,\widehat{\Cov}(\vect n_k).
+        \label{eq:empirical-qc}
+    \end{equation}
+    The result should converge to the configured \(\mat Q_c\). Run the same test at
+    multiple \(\Delta t\) values: rate variance should scale as \(1/\Delta t\), while
+    increment variance should scale as \(\Delta t\).
+
+    For a scalar normal variance estimate from \(N\) independent samples,
+    \begin{equation}
+        \frac{(N-1)\widehat\sigma^2}{\sigma^2}\sim\chi^2_{N-1},
+        \label{eq:variance-chi-square}
+    \end{equation}
+    which supplies a principled acceptance interval instead of an arbitrary percent
+    error. Multivariate covariance tests can compare eigenvalues, correlations, and
+    Mahalanobis statistics.
+
+
+    \section{Gauss--Markov and random-walk tests}
+    A stationary Gauss--Markov fixture should verify
+    \begin{align}
+        \widehat{\Var}(b_i)&\approx\sigma_b^2,\\
+        \widehat\rho(\ell)&\approx e^{-\ell\Delta t/T},
+        \label{eq:gm-test-targets}
+    \end{align}
+    including at least one variable-step schedule. A random-walk fixture should
+    verify that increment variance is
+    \begin{equation}
+        \Var(b_{k+1}-b_k)=\sigma_{\mathrm{rw}}^2\Delta t_k
+    \end{equation}
+    and that ensemble variance grows linearly with elapsed time.
+
+
+    \section{Flicker and Allan tests}
+    The compact regression fixtures under \software{tests/profiles/test/} should
+    compare
+    \begin{itemize}
+        \item white-noise level at short averaging times;
+        \item Gauss--Markov turnover location and asymptotic slopes;
+        \item random-walk long-time slope; and
+        \item finite-band flicker level near \(\tau_c\).
+    \end{itemize}
+    Tests should compare bands or fitted slopes rather than demand pointwise equality
+    to analytic curves. Multiple seeds reduce the chance that one favorable record
+    masks an incorrect implementation.
+
+
+    \section{Reset and reproducibility tests}
+    With a fixed seed and identical sample history, every output should reproduce
+    bit-for-bit when the numerical backend permits. Across many distinct seeds,
+    reset-level samples should satisfy their configured covariance. A reset should
+    also clear prior truth history so the next call returns zero increments rather
+    than bridging across runs.
+
+
+    \section{Output-electronics tests}
+    Clipping tests should cover below-range, exact-boundary, and over-range values on
+    both signs. Quantization tests should cover exact bins, values just inside each
+    side of a threshold, and half-step ties. A mixed test should confirm that
+    clipping precedes quantization and that both precede multiplication by
+    \(\Delta t\) and output scales.
+
+
+    \section{Stateless characterization tests}
+    The characterization path should be tested independently of random trajectories.
+    For fixed configuration and independent inputs, repeated calls must return
+    identical matrices and must leave the configuration unchanged. Exact identities
+    should cover
+    \begin{itemize}
+        \item Gauss--Markov \(\phi\) and \(Q(\Delta t)\);
+        \item random-walk transition and elapsed-time covariance growth;
+        \item the reset-to-elapsed prior covariance equation;
+        \item direct white increment covariance and output scaling;
+        \item conditional versus marginal covariance separation; and
+        \item positive-semidefiniteness and the documented six-dimensional ordering.
+    \end{itemize}
+    Quantization tests should verify that the \(\delta^2/12\) term is opt-in and
+    explicitly identified in metadata. A filter integration test should verify that
+    conditional covariance plus explicit bias propagation does not also consume the
+    marginal persistent covariance.
+
+
+    \section{Verification matrix}
+    \begin{longtable}{@{}L{1.45in}L{2.05in}L{2.75in}@{}}
+        \caption{Recommended verification matrix and exit evidence.}
+        \label{tab:verification-matrix}\\
+        \toprule
+        \textbf{Capability} & \textbf{Primary test} & \textbf{Exit evidence} \\
+        \midrule
+        \endfirsthead
+        \toprule
+        \textbf{Capability} & \textbf{Primary test} & \textbf{Exit evidence} \\
+        \midrule
+        \endhead
+        Truth-frame contract & Analytic rotations and velocity steps & Correct axes, signs, units, and world-rotation invariance. \\
+        Zero-error pass-through & Deterministic identity fixture & Output equals \cref{eq:ideal-dv,eq:ideal-dtheta}. \\
+        Scale and nonlinearity & Basis and mixed-axis sweeps & Formula parity and finite-difference Jacobian agreement. \\
+        Thermal behavior & Multi-temperature sweep and \software{None} case & Correct bias, scale, noise multiplier, reference temperature, and identity state. \\
+        Misalignment & Fixed seeded rotation & Norm preservation and expected first-order cross-axis coupling. \\
+        White noise & Multi-$\Delta t$ covariance test & $\Delta t\widehat{\Cov}(n)\approx Q_c$ and correct thermal covariance. \\
+        Turn-on bias & Reset ensemble & Configured mean/covariance; constant inside each run. \\
+        Gauss--Markov & Long stationary run & Stationary variance and exponential autocorrelation. \\
+        Random walk & Multi-horizon ensemble & Increment and elapsed-time variance laws. \\
+        Flicker approximation & Allan-band regression & Target near $\tau_c$ and roll-off outside configured band. \\
+        Stateless characterization & Pure-function and matrix-identity tests & Exact transitions, priors, conditional/marginal separation, and six-dimensional ordering. \\
+        Clipping & Boundary table & Exact componentwise saturation and disabled identity behavior. \\
+        Quantization & Bin and tie table & Exact configured rounding rule and error bound. \\
+        Output scaling & Known deterministic rate & Correct channel/global scales and integration by $\Delta t$. \\
+        Reset reproducibility & Same-seed replay & Identical reset state and output sequence. \\
+        Protocol substitution & Alternate dummy implementation & Consumer depends on \software{ImuModelProtocol}, not concrete class internals. \\
+        Packaging & Build/install smoke test & Wheel/sdist install, import, examples, and metadata succeed. \\
+        \bottomrule
+    \end{longtable}
+
+
+    \section{Verification criteria}
+    The implementation and its examples should satisfy the following criteria:
+    \begin{itemize}
+        \item all deterministic contracts have exact or tolerance-bounded unit tests;
+        \item statistical tests use documented confidence or Monte Carlo tolerances;
+        \item at least one white, Gauss--Markov, random-walk, and flicker fixture has a
+        saved analytic reference;
+        \item public inputs, outputs, units, frame directions, and reset behavior match
+        this specification;
+        \item examples distinguish notional profiles from authoritative specifications;
+        \item a small downstream integration demonstrates that a consumer can use
+        \field{delta\_v}, \field{delta\_theta}, and \field{dt} without reading truth.
+    \end{itemize}
+
+
+    \chapter{Assumptions, limitations, and roadmap}
+    \label{chap:limitations}
+
+
+    \section{Current modeling assumptions}
+    The default model assumes
+    \begin{itemize}
+        \item one timestamp and one truth velocity/orientation snapshot per sample;
+        \item accelerometer and gyro error channels are independent unless covariance
+        is configured within a channel;
+        \item run-level misalignment is a proper rotation and remains fixed;
+        \item deterministic nonlinearity is radial and quadratic;
+        \item the default thermal response is instantaneous and linear in temperature;
+        \item white-noise parameters represent continuous-time density or covariance;
+        \item Gauss--Markov states use exact first-order transitions;
+        \item flicker behavior is finite-band and approximated by a finite component
+        bank; and
+        \item clipping and quantization occur in the rate domain.
+    \end{itemize}
+
+
+    \section{Not represented by the default model}
+    The following effects require preprocessing, an alternate implementation, or a
+    future extension:
+    \begin{itemize}
+        \item gravity and Earth-rate terms;
+        \item lever-arm acceleration, centripetal acceleration, and mounting flex;
+        \item finite sensor bandwidth, anti-aliasing filters, group delay, and sample
+        aperture;
+        \item coning and sculling corrections from subinterval motion;
+        \item gyro acceleration sensitivity and vibration rectification;
+        \item hysteresis, aging, warm-up transients, shock recovery, and radiation;
+        \item cross-channel accelerometer--gyro covariance and common environmental
+        latent processes;
+        \item temperature dynamics, self-heating, and spatial gradients;
+        \item calibration estimation, online bias estimation, or navigation filtering;
+        and
+        \item vendor-certified profiles.
+    \end{itemize}
+
+
+    \section{Candidate roadmap}
+    A technically coherent roadmap is
+    \begin{enumerate}
+        \item \textbf{Core hardening}: freeze frame, unit, reset, and stochastic-index
+        semantics; complete analytic regression fixtures.
+        \item \textbf{Profile tooling}: add schema versions, provenance fields, unit
+        conversion reports, and evidence-quality labels.
+        \item \textbf{Dynamic response}: add optional linear filters and explicit
+        sample aperture while preserving continuous-time noise semantics.
+        \item \textbf{High-dynamic inertial increments}: add substep truth input and
+        coning/sculling-aware models.
+        \item \textbf{Environmental coupling}: add thermal lag, vibration sensitivity,
+        and shared cross-channel latent processes.
+        \item \textbf{Calibration and fitting}: estimate parameters from static records,
+        temperature sweeps, turntable tests, and Allan data with uncertainty reports.
+        \item \textbf{Integration evidence}: provide estimator and closed-loop examples
+        that quantify degradation from ideal truth to progressively richer error
+        profiles.
+    \end{enumerate}
+
+    \begin{engineeringbox}
+        Extensions should add new, explicitly named operators rather than overloading an
+        existing scalar with a different physical meaning. Backward-compatible clarity is
+        more valuable than compressing every hardware behavior into one configuration
+        object.
+    \end{engineeringbox}
+
+
+    \appendix
+
+
+    \chapter{Mathematical derivations}
+    \label{app:derivations}
+
+
+    \section{Exact Gauss--Markov discretization}
+    Starting from the scalar form of \cref{eq:ou-sde},
+    \begin{equation}
+        \dd b(t)=-\frac{1}{T}b(t)\dd t+q\dd W(t),
+        \qquad q=\sqrt{\frac{2\sigma_b^2}{T}},
+    \end{equation}
+    the solution over \(\Delta t\) is
+    \begin{equation}
+        b(t+\Delta t)
+        =e^{-\Delta t/T}b(t)
+        +q\int_t^{t+\Delta t}
+        e^{-(t+\Delta t-\tau)/T}\dd W(\tau).
+        \label{eq:ou-solution}
+    \end{equation}
+    The stochastic integral is Gaussian with variance
+    \begin{align}
+        Q_d
+        &=q^2\int_t^{t+\Delta t}
+        e^{-2(t+\Delta t-\tau)/T}\dd\tau\\
+        &=\frac{2\sigma_b^2}{T}\cdot\frac{T}{2}
+        \left(1-e^{-2\Delta t/T}\right)\\
+        &=\sigma_b^2(1-\phi^2),
+        \qquad \phi=e^{-\Delta t/T},
+    \end{align}
+    which yields \cref{eq:gm-discrete}. If
+    \(\Var(b_k)=\sigma_b^2\), then
+    \begin{equation}
+        \Var(b_{k+1})
+        =\phi^2\sigma_b^2+\sigma_b^2(1-\phi^2)
+        =\sigma_b^2,
+    \end{equation}
+    proving stationarity under the exact update.
+
+
+    \section{White-noise density to increment variance}
+    From \cref{eq:white-discrete-cov}, a scalar rate sample has variance
+    \(N^2/\Delta t\). Its increment contribution is
+    \begin{equation}
+        \Delta y_k=\Delta t\,n_k,
+    \end{equation}
+    so
+    \begin{equation}
+        \Var(\Delta y_k)
+        =\Delta t^2\frac{N^2}{\Delta t}
+        =N^2\Delta t.
+    \end{equation}
+    Over \(M\) independent intervals of equal duration, the integrated noise
+    variance is
+    \begin{equation}
+        \Var\!\left(\sum_{k=0}^{M-1}\Delta y_k\right)
+        =MN^2\Delta t=N^2t,
+        \qquad t=M\Delta t,
+    \end{equation}
+    which recovers continuous random-walk growth.
+
+
+    \section{Gauss--Markov Allan variance}
+    For a stationary scalar process with autocovariance
+    \begin{equation}
+        R_b(\tau)=\sigma_b^2e^{-\lvert\tau\rvert/T},
+    \end{equation}
+    the variance of a \(\tau\)-length average is
+    \begin{align}
+        \Var(\bar b)
+        &=\frac{1}{\tau^2}\int_0^\tau\!\int_0^\tau
+        R_b(t-s)\dd t\dd s\\
+        &=\frac{2\sigma_b^2}{\tau^2}
+        \left[T\tau-T^2(1-e^{-\tau/T})\right].
+        \label{eq:gm-mean-var}
+    \end{align}
+    The covariance of adjacent averages is
+    \begin{equation}
+        \Cov(\bar b_j,\bar b_{j+1})
+        =\frac{\sigma_b^2T^2}{\tau^2}(1-e^{-\tau/T})^2.
+        \label{eq:gm-adjacent-cov}
+    \end{equation}
+    Since Allan variance is half the variance of the difference between adjacent
+    averages,
+    \begin{align}
+        \sigma_A^2(\tau)
+        &=\Var(\bar b)-\Cov(\bar b_j,\bar b_{j+1})\\
+        &=\frac{
+            2\sigma_b^2[T\tau-T^2(1-e^{-\tau/T})]
+            -\sigma_b^2T^2(1-e^{-\tau/T})^2
+        }{\tau^2},
+    \end{align}
+    which is equivalent to \cref{eq:allan-gm}.
+
+
+    \section{Small-angle misalignment}
+    Using the first terms of \cref{eq:rodrigues},
+    \begin{equation}
+        \mat M=\Exp(\skewmat{\vect\epsilon})
+        =\mat I+\skewmat{\vect\epsilon}+\mathcal O(\lVert\vect\epsilon\rVert^2).
+    \end{equation}
+    Therefore
+    \begin{equation}
+        \mat M\vect d
+        =\vect d+\skewmat{\vect\epsilon}\vect d+\mathcal O(\epsilon^2)
+        =\vect d-\skewmat{\vect d}\vect\epsilon+\mathcal O(\epsilon^2).
+    \end{equation}
+    The off-axis error magnitude obeys
+    \begin{equation}
+        \lVert\vect\epsilon\times\vect d\rVert
+        =\lVert\vect\epsilon\rVert\lVert\vect d\rVert\sin\alpha,
+    \end{equation}
+    where \(\alpha\) is the angle between misalignment and signal vectors. A
+    single-axis calibration cannot fully reveal a general three-axis misalignment.
+
+
+    \section{Random-walk Allan variance}
+    Let \(b(t)=\sigma_{\mathrm{rw}}W(t)\). For adjacent interval averages of length
+    \(\tau\), direct integration of Brownian covariance
+    \(\E[W(t)W(s)]=\min(t,s)\) gives
+    \begin{equation}
+        \frac12\Var(\bar b_{j+1}-\bar b_j)
+        =\frac{\sigma_{\mathrm{rw}}^2\tau}{3},
+    \end{equation}
+    which yields \cref{eq:allan-rw}.
+
+
+    \chapter{Configuration review checklist}
+    \label{app:checklist}
+
+    Before accepting a profile or scenario, review the following items.
+
+
+    \section*{Frames and sampling}
+    \begin{itemize}
+        \item Is the supplied orientation definitely body-to-world?
+        \item Is the velocity input world-frame and gravity-excluded under the intended
+        truth adapter?
+        \item Are timestamps strictly increasing and in seconds?
+        \item Is the sample interval small enough for endpoint differencing in the
+        intended maneuvers?
+        \item Does the consumer understand that both outputs use body axes at interval
+        start?
+    \end{itemize}
+
+
+    \section*{Units and provenance}
+    \begin{itemize}
+        \item Has every value been converted to canonical SI exactly once?
+        \item Are original units and conversion equations retained?
+        \item Are typical, maximum, RMS, and one-sigma values distinguished?
+        \item Are noise density, Allan coefficient, and integrated random-walk metrics
+        distinguished?
+        \item Is every estimated value labeled as estimated rather than official?
+    \end{itemize}
+
+
+    \section*{Stochastic semantics}
+    \begin{itemize}
+        \item Is turn-on bias separated from in-run drift?
+        \item If \field{bias\_correlation\_time} is absent, is the random-walk driving
+        interpretation intentional?
+        \item If a covariance is supplied, is it symmetric positive semidefinite and in
+        continuous-time units?
+        \item Does the flicker correlation-time band cover the averaging times of
+        interest?
+        \item Are seeds, reset points, and Monte Carlo trial identifiers recorded?
+    \end{itemize}
+
+
+    \section*{Output behavior}
+    \begin{itemize}
+        \item Are clipping limits rate-domain limits in canonical units?
+        \item Is the quantization step a true output LSB rather than a marketing
+        resolution metric?
+        \item Are channel and global output scales both intentional?
+        \item Is the configured rounding rule covered by tests?
+        \item Are temperature-unavailable samples intentionally represented by
+        \software{None}?
+    \end{itemize}
+
+
+    \chapter{Requirements traceability summary}
+    \label{app:traceability}
+
+    \begin{longtable}{@{}L{0.75in}L{2.45in}L{3.05in}@{}}
+        \caption{High-level specification requirements.}
+        \label{tab:requirements}\\
+        \toprule
+        \textbf{ID} & \textbf{Requirement} & \textbf{Primary evidence} \\
+        \midrule
+        \endfirsthead
+        \toprule
+        \textbf{ID} & \textbf{Requirement} & \textbf{Primary evidence} \\
+        \midrule
+        \endhead
+        IMU-001 & The model shall accept body-to-world orientation and gravity-excluded world velocity. & \Cref{chap:truth}; frame unit tests. \\
+        IMU-002 & The first sample after construction or reset shall initialize history and return zero increments. & \Cref{chap:algorithm}; lifecycle tests. \\
+        IMU-003 & Later timestamps shall be strictly increasing. & Input validation tests. \\
+        IMU-004 & Ideal increments shall be expressed in body axes at interval start. & \Cref{eq:ideal-dv,eq:ideal-dtheta}; analytic frame fixtures. \\
+        IMU-005 & Thermal coefficients shall be bound to a channel model and evaluated from optional temperature. & \Cref{eq:thermal-bias,eq:thermal-identity}; thermal sweep tests. \\
+        IMU-006 & Deterministic channel distortion shall include configured scale, radial nonlinearity, thermal scale, and thermal bias. & \Cref{eq:deterministic-map}; formula parity tests. \\
+        IMU-007 & Run-level misalignment shall be sampled at reset and held fixed. & \Cref{eq:misalignment}; same-run/reset ensemble tests. \\
+        IMU-008 & White rate-noise variance shall scale inversely with sample interval. & \Cref{eq:white-discrete-cov}; multi-rate covariance tests. \\
+        IMU-009 & A configured continuous covariance shall replace the independent-axis density path. & \Cref{eq:general-white}; correlated covariance tests. \\
+        IMU-010 & Stationary bias with correlation time shall use the exact Gauss--Markov transition. & \Cref{eq:gm-discrete}; stationarity/autocorrelation tests. \\
+        IMU-011 & Bias without correlation time shall use the random-walk transition. & \Cref{eq:random-walk}; ensemble variance-growth tests. \\
+        IMU-012 & Flicker-like bias shall use a finite logarithmic bank normalized to an Allan target. & \Cref{eq:flicker-sum,eq:flicker-normalization}; Allan-band tests. \\
+        IMU-013 & Clipping and quantization shall operate on rate before integration. & \Cref{eq:clip,eq:quantization,eq:unified-model}; boundary tests. \\
+        IMU-014 & Output shall include measured increments and interval metadata. & Public contract and integration smoke tests. \\
+        IMU-015 & Alternate implementations shall be usable through \software{ImuModelProtocol}. & Protocol conformance test with a dummy model. \\
+        IMU-016 & Hardware-oriented profiles shall identify provenance and shall not imply certification. & Profile schema validation and documentation review. \\
+        \bottomrule
+    \end{longtable}
+
+
+    \chapter{Compact equation reference}
+    \label{app:quick-reference}
+
+    \begin{tcolorbox}[
+        enhanced,breakable,colback=ImuPale,colframe=ImuBlue,
+        title={Kinematics},fonttitle=\bfseries]
+        \begin{align*}
+            \Delta t_k&=t_{k+1}-t_k>0,\\
+            \Delta\vect v_{b,k}
+            &=\Rwb(t_k)^\transpose[\vect v^w(t_{k+1})-\vect v^w(t_k)],\\
+            \Delta\vect\theta_{b,k}
+            &=\Log[\Rwb(t_k)^\transpose\Rwb(t_{k+1})]^\vee,\\
+            \vect u_{a,k}&=\Delta\vect v_{b,k}/\Delta t_k,
+            \qquad
+            \vect u_{g,k}=\Delta\vect\theta_{b,k}/\Delta t_k.
+        \end{align*}
+    \end{tcolorbox}
+
+    \begin{tcolorbox}[
+        enhanced,breakable,colback=ImuPaleTeal,colframe=ImuTeal,
+        title={Deterministic and output model},fonttitle=\bfseries]
+        \begin{align*}
+            \vect d_s
+            &=\vect u_s\Had(\vect1+\vect s_s+\vect\kappa_{T,s})
+            \Had(\vect1+n_s\lVert\vect u_s\rVert^2\vect1)+\vect\beta_{T,s},\\
+            \mat M_s&=\Exp(\skewmat{\vect\epsilon_s}),\\
+            \vect r_{s,k}
+            &=\mat M_s\vect d_s+\vect b_{\mathrm{on},s}
+            +\vect b_{s,k}+\vect f_{s,k}+\vect n_{s,k},\\
+            \Delta\vect y^{\mathrm{meas}}_{s,k}
+            &=\Delta t_k\,o_sO_s\,
+            \mathcal Q_{\vect\delta_s}(\mathcal C_{L_s}(\vect r_{s,k})).
+        \end{align*}
+    \end{tcolorbox}
+
+    \begin{tcolorbox}[
+        enhanced,breakable,colback=ImuPaleGold,colframe=ImuGold,
+        title={Stochastic updates},fonttitle=\bfseries]
+        \begin{align*}
+            \vect n_{s,k}&\sim\Normal\!\left(
+                                           \vect0,\frac{\mat\Lambda_{s,k}\mat Q_{c,s}
+                    \mat\Lambda_{s,k}^\transpose}{\Delta t_k}\right),\\
+            \vect b_{k+1}&=e^{-\Delta t/T}\vect b_k
+            +\Normal\!\left(\vect0,
+                          \sigma_b^2(1-e^{-2\Delta t/T})\mat I\right),\\
+            \vect b_{k+1}&=\vect b_k
+            +\Normal\!\left(\vect0,
+                          \sigma_{\mathrm{rw}}^2\Delta t\mat I\right)
+            \quad\text{(random walk)},\\
+            \vect f(t)&=\sum_{i=1}^{K}\vect x_i(t),
+            \qquad T_i\in\operatorname{geomspace}(T_{\min},T_{\max},K).
+        \end{align*}
+    \end{tcolorbox}
+
+    \begin{tcolorbox}[
+        enhanced,breakable,colback=white,colframe=ImuOrange,
+        title={Allan references},fonttitle=\bfseries]
+        \begin{align*}
+            \sigma_{A,\mathrm{white}}(\tau)&=N/\sqrt\tau,\\
+            \sigma_{A,\mathrm{rw}}(\tau)&=\sigma_{\mathrm{rw}}\sqrt{\tau/3},\\
+            \sigma_{A,\mathrm{GM}}^2(\tau)
+            &=\sigma_b^2\left[
+                            \frac{2T}{\tau}-\left(\frac{T}{\tau}\right)^2
+                (3-4e^{-\tau/T}+e^{-2\tau/T})
+            \right].
+        \end{align*}
+    \end{tcolorbox}
+
+    \printbibliography[heading=bibintoc,title={References}]
+
+\end{document}

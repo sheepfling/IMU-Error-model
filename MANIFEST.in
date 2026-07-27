@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include tests/profiles/*.json
+recursive-include tests/profiles/test *.json
+include docs/*.tex
+recursive-include examples *.py *.yaml *.md

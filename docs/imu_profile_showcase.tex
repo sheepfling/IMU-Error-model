@@ -1,0 +1,320 @@
+\documentclass[11pt,oneside,headings=big]{scrreprt}
+
+\input{imu_style.tex}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=ImuBlue,
+    urlcolor=ImuOrange,
+    pdftitle={IMU Error Model Profile Showcase},
+    pdfauthor={imu-error-model project},
+    pdfsubject={Example IMU profiles and generated analysis plots}
+}
+
+\graphicspath{{../artifacts/showcase/}}
+
+\ihead{\textsc{IMU Profile Showcase}}
+
+\newtcolorbox{notionalbox}[1][]{
+    enhanced,breakable,
+    colback=ImuPaleGold,colframe=ImuGold,
+    boxrule=0.8pt,arc=2pt,
+    left=8pt,right=8pt,top=7pt,bottom=7pt,
+    title={Interpretation boundary},
+    fonttitle=\bfseries\color{ImuNavy},
+    #1
+}
+\newtcolorbox{methodbox}[1][]{
+    enhanced,breakable,
+    colback=ImuPaleTeal,colframe=ImuTeal,
+    boxrule=0.8pt,arc=2pt,
+    left=8pt,right=8pt,top=7pt,bottom=7pt,
+    title={How this chart was made},
+    fonttitle=\bfseries\color{ImuNavy},
+    #1
+}
+
+\title{%
+    \vspace*{1.2cm}
+    {\color{ImuNavy}\Huge\bfseries IMU Error Model\\[0.25em]
+    \color{ImuBlue}\Large Example Profiles and Analysis}\par
+    \vspace{1.0cm}
+    \color{ImuSlate}\large Visual examples for the mathematical specification\par
+    \vfill
+    \color{ImuSlate}\normalsize Version 0.1.2\\
+    Analysis based on the example profile set\\
+    \today
+}
+\author{}
+\date{}
+
+\begin{document}
+    \maketitle
+    \tableofcontents
+
+
+    \chapter{Purpose and scope}
+
+    This companion document gives the example profiles a visual, comparative
+    context. It shows how the same \software{ImuModel} interface can represent
+    consumer, tactical, navigation, industrial, and biological reference cases,
+    then traces those profiles through Allan-deviation analysis, sampled
+    measurements, thermal sweeps, and unaided dead reckoning.
+
+    The plots show the behavior produced by the example profiles. They provide a
+    consistent basis for visual inspection and comparison; they are not vendor
+    performance claims, certification evidence, or measurements of physical
+    hardware.
+
+    \begin{notionalbox}
+        Every hardware-oriented profile in this document is a notional, approximate
+        modeling estimate derived from public datasheets or other cited source material.
+        Its structured source metadata records the evidence used to choose values, but
+        the resulting profile is not authoritative, an official manufacturer
+        configuration, certification evidence, or a guarantee of instrument
+        performance. The HumanVestibular profile is a comparison benchmark rather than
+        hardware.
+    \end{notionalbox}
+
+
+    \section{Reproducible artifact set}
+
+    The figures in this document are PNG assets under
+    \path{artifacts/showcase/}. They can be regenerated with:
+
+    \begin{verbatim}
+python3 scripts/ci.py showcase
+    \end{verbatim}
+
+    This command runs seeded simulations through the public loading and model
+    interfaces, computes Allan deviation or reconstruction errors, and saves each
+    figure as both PNG and SVG. The PNG files are used here for portable PDF
+    generation; the matching SVG files remain available for vector inspection.
+
+
+    \chapter{The example profile set}
+
+    The repository contains fifteen canonical YAML profile documents. They all use
+    the same validated \software{ProfileDocument} envelope: model name, nominal
+    sample period, structured provenance, and accelerometer/gyroscope channel
+    configuration. The classes below describe the intended modeling category, not
+    a certification tier.
+
+    \begin{longtable}{@{}L{1.35in}L{1.18in}L{0.92in}C{0.72in}p{1.95in}@{}}
+        \caption{Example profiles included in the repository.}\label{tab:profiles}\\
+        \toprule
+        \textbf{Profile} & \textbf{Family} & \textbf{Class} & \textbf{$\Delta t$ (s)} & \textbf{Role in the examples} \\
+        \midrule
+        \endfirsthead
+        \toprule
+        \textbf{Profile} & \textbf{Family} & \textbf{Class} & \textbf{$\Delta t$ (s)} & \textbf{Role in the examples} \\
+        \midrule
+        \endhead
+        \bottomrule
+        \endfoot
+        ADIS16470 & ADIS16470 & industrial & 0.0005 & Datasheet-oriented inertial reference. \\
+        ICM-42688-P & ICM-42688-P & consumer & 0.0010 & Consumer six-axis reference. \\
+        HG1700AG58 & HG1700 & tactical & 0.0100 & Tactical reference for measurement and reconstruction. \\
+        HG1700AG59 & HG1700 & tactical & 0.001667 & Tactical variant with faster sampling. \\
+        HG1700AG60 & HG1700 & tactical & 0.001667 & Tactical variant for profile comparison. \\
+        HG1700AG61 & HG1700 & tactical & 0.001667 & Tactical variant for profile comparison. \\
+        HG1700AG71 & HG1700 & tactical & 0.0100 & Tactical variant with slower sampling. \\
+        HG5700AA01 & HG5700 & navigation & 0.001667 & Navigation-grade family example. \\
+        HG5700BA01 & HG5700 & navigation & 0.001667 & Navigation-grade family example. \\
+        HG5700CA01 & HG5700 & navigation & 0.001667 & Representative navigation curve. \\
+        HG9900 & HG9900 & navigation & 0.003333 & Navigation curve and reconstruction case. \\
+        HumanVestibular & human vestibular & biological & 0.0100 & Human benchmark. \\
+        iPhoneLike & phone-like & consumer & 0.0100 & Consumer curve and reconstruction case. \\
+        SBG\_PULSE\_40 & PULSE-40 & tactical & 0.0005 & Thermal trend example and tactical comparison. \\
+    \end{longtable}
+
+
+    \section{What a profile controls}
+
+    Each channel can combine independent or correlated white noise, turn-on bias,
+    stationary Gauss--Markov or random-walk bias, finite-band flicker bias,
+    misalignment, scale factor, nonlinearity, clipping, quantization, and thermal
+    coefficients. Values can be scalar or explicitly per-axis where the profile
+    evidence supports that distinction.
+
+    The model receives truth velocity and orientation and returns body-frame
+    velocity and rotation-vector increments. The figures therefore show the
+    behavior of a sensor-error model, not a complete navigation filter. In
+    particular, the reconstruction plot is a deliberately unaided dead-reckoning
+    demonstration.
+
+
+    \chapter{Allan-deviation views}
+
+
+    \section{Profile-class comparison}
+
+    \begin{figure}[p]
+        \centering
+        \includegraphics[width=0.98\textwidth]{hero-allan-ladder.png}
+        \caption{Representative accelerometer and gyroscope Allan-deviation curves
+        across consumer, tactical, navigation, and phone-like example profiles.}
+        \label{fig:allan-ladder}
+    \end{figure}
+
+    \begin{methodbox}
+        For each selected profile, the script loads the canonical YAML document,
+        constructs an \software{ImuModel} with a deterministic random seed, samples
+        zero-motion rates, and computes overlapping block-mean differences over a
+        logarithmic set of averaging times. The curves compare model behavior under a
+        common analysis interface; they do not imply that every source supplied a full
+        Allan-deviation characterization.
+    \end{methodbox}
+
+    Figure~\ref{fig:allan-ladder} is the broadest visual summary in the artifact
+    set. The vertical placement reflects configured error magnitudes, while the
+    shape reflects the composition of white noise, persistent bias processes, and
+    flicker-like components. The sample period matters: it determines both the
+    available shortest averaging time and the number of simulated samples in a
+    fixed-duration run.
+
+
+    \section{Error-process anatomy}
+
+    \begin{figure}[p]
+        \centering
+        \includegraphics[width=0.92\textwidth]{error-anatomy-allan.png}
+        \caption{Allan signatures of isolated white noise, Gauss--Markov bias,
+            finite-band flicker, and their combined fixture.}
+        \label{fig:error-anatomy}
+    \end{figure}
+
+    This fixture is intentionally inspectable rather than tied to a hardware
+    profile. It shows why a single scalar noise-density summary is insufficient for
+    longer averaging times: white noise, a finite-correlation bias, and a finite
+    flicker bank leave different signatures. The combined curve is produced by the
+    same stateful sampler used for the hardware-oriented profiles.
+
+
+    \section{Reading the Allan plots}
+
+    The plots use Allan deviation, not power spectral density. A falling short-term
+    curve is consistent with white rate noise; a shoulder or plateau can arise from
+    correlated bias or flicker-like terms; and a rising long-term curve indicates
+    nonstationary or low-frequency error behavior. The exact interpretation depends
+    on the configured process, duration, cluster schedule, and the axis selected
+    for the rendering.
+
+
+    \chapter{Measurements and thermal response}
+
+
+    \section{Truth versus sampled measurement}
+
+    \begin{figure}[p]
+        \centering
+        \includegraphics[width=0.98\textwidth]{measurement-time-series.png}
+        \caption{A deterministic HG1700AG58 motion rendered as imperfect sampled
+        accelerometer and gyroscope measurements, with residuals in practical units.}
+        \label{fig:measurement}
+    \end{figure}
+
+    The truth trajectory is deterministic: a slowly varying acceleration and a
+    rotating body frame. The measured channels include the configured profile
+    effects and are plotted in the body-frame convention of the package. The right
+    column expresses residuals in micro-$g$ and degrees per hour to make small
+    errors visible; those display conversions do not change the stored model units.
+
+
+    \section{Temperature sweep}
+
+    \begin{figure}[p]
+        \centering
+        \includegraphics[width=0.98\textwidth]{thermal-trends.png}
+        \caption{Thermal-only accelerometer and gyroscope trends for the notional
+        SBG PULSE 40 profile, swept from $-40$ to $71$ degrees Celsius.}
+        \label{fig:thermal}
+    \end{figure}
+
+    The thermal rendering disables stochastic and unrelated deterministic terms,
+    uses a constant reference motion, and supplies the current temperature to the
+    channel thermal model. Temperature is an explicit Celsius input at the public
+    sampling boundary. The reference temperature is $25\,^{\circ}\mathrm{C}$, so a
+    zero crossing near that point is expected for a purely linear coefficient.
+
+    \begin{notionalbox}
+        The thermal plot is a sensitivity visualization, not a thermal qualification
+        test. It makes configured coefficients visible and does not model thermal lag,
+        sensor self-heating, or environmental coupling.
+    \end{notionalbox}
+
+
+    \chapter{Unaided reconstruction}
+
+    \begin{figure}[p]
+        \centering
+        \includegraphics[width=0.98\textwidth]{reconstruction-drift.png}
+        \caption{Position and attitude error accumulated by dead reckoning the same
+        truth motion through three representative error profiles.}
+        \label{fig:reconstruction}
+    \end{figure}
+
+    The reconstruction experiment integrates the returned body-frame increments
+    without aiding, external observations, or a Kalman filter. It compares HG9900,
+    HG1700AG58, and iPhoneLike examples against the same constant-acceleration,
+    constant-rate truth trajectory. Position error is reported in meters and
+    attitude error in degrees.
+
+    This figure is useful for intuition, but it should not be read as a navigation
+    performance ranking. The result depends on the chosen truth motion, duration,
+    seed, initialization, integration convention, and the fact that no aiding is
+    available. A real estimator owns the navigation-state covariance and would
+    combine the sensor process with its own dynamics and observations.
+
+
+    \section{A compact interpretation}
+
+    The five views answer different questions:
+
+    \begin{itemize}
+        \item Figure~\ref{fig:allan-ladder} compares configured stochastic behavior
+        across profile classes.
+        \item Figure~\ref{fig:error-anatomy} separates the signatures of the core
+        error processes.
+        \item Figure~\ref{fig:measurement} shows how deterministic truth becomes a
+        sampled body-frame measurement.
+        \item Figure~\ref{fig:thermal} isolates temperature-dependent terms.
+        \item Figure~\ref{fig:reconstruction} shows how increment errors accumulate
+        when no navigation correction is applied.
+    \end{itemize}
+
+    Together they provide a visual companion to the configuration and estimator
+    contracts without claiming more than the code and profile metadata support.
+
+
+    \chapter{Reproduction and artifact manifest}
+
+    The showcase figures can be regenerated from the project root:
+
+    \begin{verbatim}
+python3 scripts/ci.py showcase
+    \end{verbatim}
+
+    The command writes the following paired PNG and SVG assets:
+
+    \small
+    \begin{tabularx}{0.97\textwidth}{@{}L{1.85in}Y@{}}
+\toprule
+\textbf{Asset} & \textbf{Description} \\
+\midrule
+\path{hero-allan-ladder} & Representative sensor-class Allan-deviation comparison. \\
+\path{error-anatomy-allan} & Allan signatures of composable error terms. \\
+\path{reconstruction-drift} & Dead-reckoning position and attitude error growth. \\
+\path{measurement-time-series} & Truth rates compared with imperfect sampled rates and residuals. \\
+\path{thermal-trends} & Thermal-only accelerometer and gyroscope error trends. \\
+\bottomrule
+    \end{tabularx}
+    \normalsize
+
+    The canonical asset descriptions are also written to
+    \path{artifacts/showcase/manifest.csv}. The numerical profile definitions live
+    under \path{examples/imu_profiles/hardware-estimates/}; their structured source
+    URLs, archive links, review dates, and metadata should be consulted before
+    using any value outside an illustrative simulation.
+
+\end{document}

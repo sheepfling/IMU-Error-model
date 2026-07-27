@@ -185,6 +185,7 @@ python3 scripts/ci.py lint
 python3 scripts/ci.py format
 python3 scripts/ci.py typecheck
 python3 scripts/ci.py build
+python3 scripts/ci.py package
 python3 scripts/ci.py docs --build
 ```
 
@@ -200,8 +201,14 @@ The helper assumes the development dependencies and a local LaTeX installation
 (`latexmk` or `pdflatex`) are available. Outputs are written under
 `docs/artifacts/`.
 
+`scripts/ci.py package` builds a wheel in a temporary directory, verifies that
+all committed package data is present in the wheel, installs it into an isolated
+target without the source tree on `PYTHONPATH`, and runs the packaged-profile
+pytest suite, including the packaged-profile smoke test. `scripts/ci.py all`
+includes this check after the regular distribution build.
 `scripts/ci.py all` runs Ruff linting, Pyright type checking, Markdown checks,
-regression tests, coverage, and package distribution builds.
+regression tests, coverage, distribution builds, and the isolated wheel smoke
+test.
 `scripts/ci.py format` is the canonical auto-fix command: it runs Ruff's
 autofixes and formatter, then inserts the repository's required `####` scope
 markers. Ruff has no native extension point for project-specific marker rules,

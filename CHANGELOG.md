@@ -25,6 +25,9 @@
 - Shares flicker-process calibration between the stateful sampler and the
   stateless characterization path.
 
+- Adds an isolated wheel-install smoke test that checks packaged data and loads
+  every shipped example profile without importing from the source tree.
+
 ## 0.1.2 — clean baseline
 
 Focused baseline release of `imu-error-model`, a Python package for stochastic

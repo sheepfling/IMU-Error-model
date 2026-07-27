@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from os import fsync, replace
 from pathlib import Path
@@ -226,7 +228,7 @@ class ImuModel:
     ####
 
     @classmethod
-    def from_checkpoint(cls, checkpoint: ImuModelCheckpoint) -> "ImuModel":
+    def from_checkpoint(cls, checkpoint: ImuModelCheckpoint) -> ImuModel:
         """Construct a model whose next sample resumes a saved checkpoint."""
         if checkpoint.model_type != "imu_error_model.ImuModel":
             raise ValueError(f"unsupported checkpoint model type: {checkpoint.model_type!r}")
@@ -345,7 +347,7 @@ class ImuModel:
             path: str | Path,
             *,
             codec: CheckpointCodecProtocol[ImuModelCheckpoint] | None = None,
-    ) -> "ImuModel":
+    ) -> ImuModel:
         """Load a checkpoint through a selected codec and resume it."""
         active_codec = cls._default_checkpoint_codec if codec is None else codec
         checkpoint = active_codec.decode(Path(path).read_bytes())

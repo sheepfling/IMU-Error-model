@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Future changes will be listed here.
+
+## 0.1.3 — planned
+
 - Ships versioned example profiles in the wheel with resource-based discovery
   and loading helpers.
 
@@ -27,6 +31,12 @@
 
 - Adds an isolated wheel-install smoke test that checks packaged data and loads
   every shipped example profile without importing from the source tree.
+
+- Derives the package version from Git tags with `setuptools-scm`, so tagged
+  builds such as `v0.1.3` determine their own package metadata.
+
+- Uses Pydantic's built-in `JsonValue` type for JSON-compatible checkpoint
+  state, keeping checkpoint typing aligned with the supported Pydantic API.
 
 ## 0.1.2 — clean baseline
 

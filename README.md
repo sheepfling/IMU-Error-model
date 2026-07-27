@@ -5,7 +5,7 @@ The package receives truth orientation and truth velocity excluding gravity;
 it returns imperfect accelerometer `delta_v` and gyroscope `delta_theta` over
 each sample interval.
 
-Install the initial release with:
+Install the package with:
 
 ```bash
 python -m pip install imu-error-model
@@ -200,6 +200,10 @@ python3 scripts/build_docs.py
 The helper assumes the development dependencies and a local LaTeX installation
 (`latexmk` or `pdflatex`) are available. Outputs are written under
 `docs/artifacts/`.
+
+Release versions are derived from Git tags by `setuptools-scm`. A release tag
+such as `v0.1.3` supplies the package version; untagged development builds get
+an automatically derived development version.
 
 `scripts/ci.py package` builds a wheel in a temporary directory, verifies that
 all committed package data is present in the wheel, installs it into an isolated

@@ -1,0 +1,37 @@
+{
+  "review_date": "2026-09-08",
+  "sources": [
+    {
+      "title": "Systematic Calibration for Ultra-High Accuracy Inertial Measurement Units",
+      "url": "https://www.mdpi.com/1424-8220/16/6/940",
+      "doi": "10.3390/s16060940",
+      "used_for": "Research context: lever-arm, gyro force-sensitivity, cross-axis calibration. Not an implementation copy or a hardware validation."
+    },
+    {
+      "title": "Improving the Measurement Accuracy of SINS Through Calibration on Horizontal Three-axis Turntable",
+      "url": "https://www.iieta.org/journals/i2m/paper/10.18280/i2m.180409",
+      "doi": "10.18280/i2m.180409",
+      "used_for": "Research context: fixture/mounting errors and deliberate multi-axis excitation."
+    },
+    {
+      "title": "Force Calibrations using Errors-in-Variables Regression and Monte Carlo Uncertainty Evaluations",
+      "url": "https://www.nist.gov/publications/force-calibrations-using-errors-variables-regression-and-monte-carlo-uncertainty",
+      "used_for": "Reference uncertainty is distinct from response residual uncertainty. The current implementation is a delta-method propagation, not the paper's general EIV estimator."
+    },
+    {
+      "title": "A Careful Consideration of the Calibration Concept",
+      "url": "https://www.nist.gov/publications/careful-consideration-calibration-concept-0",
+      "used_for": "Calibration measurand, validity conditions, systematic uncertainty, reproducibility."
+    },
+    {
+      "title": "imucal 2.6.0 on PyPI",
+      "url": "https://pypi.org/project/imucal/",
+      "pinned_version": "2.6.0",
+      "release_date": "2024-10-31",
+      "metadata_checked_date": "2026-10-12",
+      "requires_python": ">=3.9,<3.14",
+      "wheel_sha256": "6eb36338d7d08301e84b45b2d0e99e53c89c43ad4693a009c3d8dc5ba08211fe",
+      "used_for": "Latest PyPI release checked on 2026-10-12; optional Ferraris reference only. The live adapter is not represented as executed by historical validation."
+    }
+  ]
+}

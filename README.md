@@ -16,6 +16,22 @@ interval. The orientation input is `R_world_from_body`, a proper 3x3 rotation
 matrix. The model does not calculate gravity, dynamics, reconstruction, or
 state estimation.
 
+## Calibration/reference fidelity — tranche 7
+
+The [reference-equipment contract](docs/reference_equipment_contract.md) documents
+surveyed-reference calibration with table tilt, wobble, lever arms, encoder
+errors and relative timing. Tranche 7 adds a
+[matched acquisition calibration contract](docs/matched_acquisition_calibration.md):
+reconstructed references are clock-corrected and passed FORWARD through an
+independently identified output-channel readout operator before full intrinsic
+calibration. Arbitrary FIR deconvolution is deliberately avoided.
+
+The [playground](playground/calibration/README.md) keeps commands, observations
+and evaluator truth separate, carries fitted FIR/encoder/relative-clock
+uncertainty into calibration covariance, and requires held-out operating
+frequencies/rate reversals. See the [current backlog](playground/calibration/BACKLOG.md)
+for remaining physical-sampling and continuous-time response fidelity.
+
 ## Extension contract
 
 Alternate implementations satisfy `ImuModelProtocol` through structural typing.
@@ -50,6 +66,36 @@ an increment to world axes, multiply it by the supplied
 sampled interval as `start_time` and `end_time`; `dt` is derived from those
 timestamps. The derived `acceleration` and `angular_rate` properties are also
 body-frame quantities.
+
+## Direct ideal-input boundary
+
+Calibration benches, hardware replay, and higher-fidelity reference generators
+can bypass the trajectory differencing layer while retaining the same error
+pipeline. `measure_ideal_rates()` accepts explicit body-frame specific force and
+angular rate over a contiguous interval:
+
+```python
+output = model.measure_ideal_rates(
+    start_time=0.0,
+    end_time=0.01,
+    specific_force_body=specific_force_body,
+    angular_rate_body=angular_rate_body,
+    temperature_celsius=25.0,
+)
+```
+
+`measure_ideal_increments()` provides the corresponding `delta_v_body` and
+`delta_theta_body` interface. These methods intentionally do not generate
+gravity, Earth rotation, coning, or sculling; the caller owns those reference
+semantics. Switching from direct ideal input back to `measure()` establishes a
+new truth-trajectory baseline before returning another nonzero interval.
+
+The [calibration playground](playground/calibration/README.md) uses this
+boundary to generate a full-rank, Ferraris-style synthetic corpus and recover
+injected fixed sensitivity matrices, biases, and gyro specific-force
+sensitivity with an independent least-squares path.
+It also exports the exact nine-region, six-column corpus consumed by `imucal`;
+install `.[calibration]` to run the optional end-to-end comparison.
 
 ## Checkpointing and resume
 
@@ -121,14 +167,19 @@ the packaged zero-error baseline. It is intentionally separate from the
 hardware-estimate profiles.
 
 The built-in model supports independent white noise, correlated 3-axis noise
-covariance, turn-on bias, random-walk/Gauss–Markov bias, a finite-band
-flicker-bias approximation, fixed run-level misalignment, scale factor,
-nonlinearity, thermal bias/noise coefficients, clipping, and quantization. Scale
-factor, turn-on bias standard deviation, in-run bias standard deviation, and
-quantization step may be scalar values broadcast to all three axes or explicit
-three-axis values. Use `misalignment_covariance` for anisotropic reset
-misalignment; `misalignment_std` remains the isotropic shortcut. More
-elaborate thermal behavior can be supplied by implementing `ThermalModel`.
+covariance, fixed realized bias, turn-on bias, random-walk/Gauss–Markov bias, a
+finite-band flicker-bias approximation, fixed run-level misalignment, diagonal
+scale factor, an optional full forward sensitivity matrix, gyro specific-force
+sensitivity, nonlinearity, thermal bias/noise coefficients, clipping, and
+quantization. Scale factor, fixed bias, turn-on bias standard deviation, in-run
+bias standard deviation, and quantization step may be scalar values broadcast
+to all three axes or explicit three-axis values. `sensitivity_matrix` maps the
+scaled ideal channel rate into raw sensor axes; `fixed_bias` is then added in
+those axes. `gyroscope_specific_force_sensitivity` maps ideal body-frame
+specific force into additive gyro rate. Use `misalignment_covariance` for
+anisotropic reset misalignment; `misalignment_std` remains the isotropic
+shortcut. More elaborate thermal behavior can be supplied by implementing
+`ThermalModel`.
 Thermal models bind their `AxisConfig` once when constructed and expose
 `evaluate(temperature_celsius: float) -> ThermalState`; the per-sample
 interface receives only the current temperature in °C. The built-in
@@ -377,3 +428,80 @@ Independent process contributions add in Allan variance, while finite records
 and random seeds introduce normal Monte Carlo variation around these reference
 curves. Use `python3 scripts/ci.py analysis` to regenerate the parity fixtures,
 Allan charts, and showcase plots together.
+
+### Calibration and gyrocompass research playground
+
+The repository also contains an intentionally non-public-API
+`playground/calibration` research harness. It uses the error model as a
+truth-controlled sensor generator, including WGS-84 Earth-rate and normal-
+gravity references, Ferraris/rate-table programs, temperature sweeps, Monte
+Carlo uncertainty studies, one/two/four-position Maytag modulation, and
+continuous carouseling. The fit retains a coherent accelerometer/gyro
+coefficient covariance, can replace the IID estimate with a moving-block
+bootstrap for colored calibration records, and propagates calibration plus
+finite-record measurement covariance into heading confidence. Quality-gated
+prefix studies report the first tested duration reaching a requested 95%
+heading interval and expose the effective rather than merely nominal sample
+count. See the [calibration playground guide](playground/calibration/README.md).
+The playground is verification infrastructure; its synthetic performance
+numbers are not hardware claims.
+The [recovery provenance](docs/recovery_provenance.md) records the recovered
+source hashes, the historical validation boundary, and the retained Ferraris
+X/Y frame-correction regression test.
+
+## Matched acquisition-aware calibration — tranche 7
+
+Filtered or delayed sensor rates must not be fit against instantaneous raw
+references merely because their timestamp labels look aligned. The tranche-7
+playground identifies effective per-channel readout kernels on an independent
+known-input record, estimates a conditional common relative clock map, reconstructs
+the encoder/survey reference on that corrected time base, and forward-filters
+every force/rate regressor contributing to each output channel.
+
+The affine intrinsic fit therefore uses the same effective support as the
+observed sensor. Startup rows are filtered before they are discarded, full
+cross-axis matrices are supported, and the readout-identification intercept is
+not mistaken for sensor bias. Readout, encoder-law, and relative-clock covariance
+can be propagated with a first-order support-model Jacobian. The timing fit keeps
+six gain/bias nuisance pairs and rejects constant-rate clock/scale gauges.
+
+Run the reproducible synthetic campaign with:
+
+```bash
+PYTHONPATH=src python -m playground.calibration.run_tranche7_campaign
+```
+
+The campaign trains at one set of table-modulation frequencies and scores the
+result on different frequencies with alternating rate reversals. It reports both
+intrinsic-parameter error and sensor-visible held-out prediction error. These are
+synthetic verification results, not device-accuracy claims.
+
+## Acquisition fidelity — calibration tranche 5
+
+The optional `AcquiredImuModel` adds causal digital FIR response, per-channel
+readout delay, one-node thermal lag, and reported-clock errors while preserving
+the existing `ImuModel` contract. Its output contract explicitly distinguishes
+filtered instrument rates from instantaneous body-frame increments.
+
+See the [acquisition contract](docs/acquisition_contract.md),
+[playground guide](playground/calibration/README.md), and
+[remaining backlog](playground/calibration/BACKLOG.md).
+
+From a source checkout, run the reproducible campaign with:
+
+```bash
+PYTHONPATH=src python -m playground.calibration.run_tranche5_campaign
+```
+
+From a Git-free snapshot with recent setuptools installed, build a named local
+development wheel without altering the source release-version mechanism:
+
+```bash
+python scripts/build_snapshot_wheel.py --output dist
+```
+
+The resulting `0.1.3+calibration.t7` wheel is a local development build, not an
+upstream release. Runtime dependencies must already be installed when testing
+offline. The calibration playground is intentionally not packaged in the wheel.
+
+- [Continuous acquisition contract](docs/continuous_acquisition_contract.md): physical sampling, finite aperture, analog bandwidth, and fractional skew.

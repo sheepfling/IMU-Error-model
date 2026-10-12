@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, ClassVar, TypeGuard, cast
 
-from numpy import all, array, asarray, cos, eye, isfinite, ndarray, random, sin, uint64, zeros
+from numpy import all, array, asarray, cos, eye, isclose, isfinite, ndarray, random, sin, uint64, zeros
 from numpy.linalg import norm
 
 from .checkpoint import ImuModelCheckpoint, JsonValue, Matrix3, RngBitGeneratorName, Vector3
@@ -179,12 +179,27 @@ class ImuModel:
     checkpoint_codec: CheckpointCodecProtocol[ImuModelCheckpoint]
 
     def __init__(self, config: ImuConfig | None = None, rng: random.Generator | None = None,
-                 thermal_model: ThermalModel | None = None):
+                 thermal_model: ThermalModel | None = None) -> None:
         self.checkpoint_codec = self._default_checkpoint_codec
         self.config = config or ImuConfig()
         self.rng = rng or random.default_rng()
         self._accel_runtime: CompiledAxisConfig = compile_axis_config(self.config.accelerometer)
         self._gyro_runtime: CompiledAxisConfig = compile_axis_config(self.config.gyroscope)
+        self._gyro_specific_force_sensitivity = (
+            zeros((3, 3))
+            if self.config.gyroscope_specific_force_sensitivity is None
+            else asarray(self.config.gyroscope_specific_force_sensitivity, dtype=float).copy()
+        )
+        self._gyro_specific_force_sensitivity.setflags(write=False)
+        self._gyro_specific_force_sensitivity_temperature_coefficient = (
+            zeros((3, 3))
+            if self.config.gyroscope_specific_force_sensitivity_temperature_coefficient is None
+            else asarray(
+                self.config.gyroscope_specific_force_sensitivity_temperature_coefficient,
+                dtype=float,
+            ).copy()
+        )
+        self._gyro_specific_force_sensitivity_temperature_coefficient.setflags(write=False)
         self._identity_thermal = ThermalState()
         self._accel_thermal_model = LinearThermalModel(
             self.config.accelerometer) if thermal_model is None else thermal_model
@@ -368,38 +383,129 @@ class ImuModel:
 
     def measure(self, timestamp: float, velocity_without_gravity: ndarray, orientation_world_from_body: ndarray,
                 temperature_celsius: float | None = None) -> ImuOutput:
-        """Sample the model at `timestamp` and return body-frame increments.
+        """Sample a gravity-excluded truth trajectory and return body-frame increments.
 
         `velocity_without_gravity` is a world-frame velocity in m/s and
         `orientation_world_from_body` maps body-frame vectors into world
         axes. `temperature_celsius` is optional; when omitted, thermal
         corrections are skipped for this sample.
         """
-        if not isfinite(timestamp) or (temperature_celsius is not None and not isfinite(temperature_celsius)):
-            raise ValueError("timestamp and temperature_celsius must be finite when supplied")
-        ####
-        velocity = asarray(velocity_without_gravity, dtype=float)
-        if velocity.shape != (3,) or not all(isfinite(velocity)):
-            raise ValueError("velocity_without_gravity must be a finite vector with shape (3,)")
-        ####
+        self._validate_time_and_temperature(timestamp, temperature_celsius)
+        velocity = self._validated_vector3(velocity_without_gravity, "velocity_without_gravity")
         orientation = validate_orientation(orientation_world_from_body)
-        if self._previous_timestamp is None:
-            self._previous_timestamp, self._previous_velocity, self._previous_orientation = timestamp, velocity.copy(), orientation.copy()
+        if (
+                self._previous_timestamp is None
+                or self._previous_velocity is None
+                or self._previous_orientation is None
+        ):
+            if self._previous_timestamp is not None and timestamp < self._previous_timestamp:
+                raise ValueError("timestamp must not precede the previous measurement boundary")
+            ####
+            self._previous_timestamp = timestamp
+            self._previous_velocity = velocity.copy()
+            self._previous_orientation = orientation.copy()
             return ImuOutput(zeros(3), zeros(3), timestamp, timestamp, temperature_celsius)
         ####
-        assert self._previous_velocity is not None
-        assert self._previous_orientation is not None
         start_time = self._previous_timestamp
-        dt = timestamp - self._previous_timestamp
+        dt = timestamp - start_time
         if dt <= 0:
             raise ValueError("timestamp must increase")
         ####
-        a_cfg, g_cfg = self.config.accelerometer, self.config.gyroscope
-        a_runtime, g_runtime = self._accel_runtime, self._gyro_runtime
         true_delta_v = self._previous_orientation.T @ (velocity - self._previous_velocity)
         true_delta_theta = rotation_vector_from_matrix(self._previous_orientation.T @ orientation)
-        self._accel_bias = gauss_markov(self._accel_bias, a_runtime.bias_std, a_cfg.bias_correlation_time, dt, self.rng)
-        self._gyro_bias = gauss_markov(self._gyro_bias, g_runtime.bias_std, g_cfg.bias_correlation_time, dt, self.rng)
+        output = self._corrupt_ideal_rates(
+            start_time=start_time,
+            end_time=timestamp,
+            specific_force_body=true_delta_v / dt,
+            angular_rate_body=true_delta_theta / dt,
+            temperature_celsius=temperature_celsius,
+        )
+        self._previous_timestamp = timestamp
+        self._previous_velocity = velocity.copy()
+        self._previous_orientation = orientation.copy()
+        return output
+    ####
+
+    def measure_ideal_rates(
+            self,
+            *,
+            start_time: float,
+            end_time: float,
+            specific_force_body: ndarray,
+            angular_rate_body: ndarray,
+            temperature_celsius: float | None = None,
+    ) -> ImuOutput:
+        """Corrupt externally supplied ideal body-frame rates over one interval.
+
+        This lower-level entry point is intended for calibration experiments,
+        hardware replay, and reference generators that already own gravity,
+        Earth-rate, coning, or sculling semantics. Intervals must be contiguous
+        within a run. Calling this method clears the truth-trajectory baseline;
+        a later `measure` call establishes a new baseline before returning data.
+        """
+        self._validate_interval(start_time, end_time, temperature_celsius)
+        if self._previous_timestamp is not None and not bool(
+                isclose(start_time, self._previous_timestamp, rtol=1e-12, atol=1e-12)
+        ):
+            raise ValueError("start_time must equal the previous measurement boundary; call reset() for a new run")
+        ####
+        specific_force = self._validated_vector3(specific_force_body, "specific_force_body")
+        angular_rate = self._validated_vector3(angular_rate_body, "angular_rate_body")
+        output = self._corrupt_ideal_rates(
+            start_time=start_time,
+            end_time=end_time,
+            specific_force_body=specific_force,
+            angular_rate_body=angular_rate,
+            temperature_celsius=temperature_celsius,
+        )
+        self._previous_timestamp = end_time
+        self._previous_velocity = None
+        self._previous_orientation = None
+        return output
+    ####
+
+    def measure_ideal_increments(
+            self,
+            *,
+            start_time: float,
+            end_time: float,
+            delta_v_body: ndarray,
+            delta_theta_body: ndarray,
+            temperature_celsius: float | None = None,
+    ) -> ImuOutput:
+        """Corrupt externally supplied ideal body-frame increments over one interval."""
+        self._validate_interval(start_time, end_time, temperature_celsius)
+        delta_v = self._validated_vector3(delta_v_body, "delta_v_body")
+        delta_theta = self._validated_vector3(delta_theta_body, "delta_theta_body")
+        dt = end_time - start_time
+        return self.measure_ideal_rates(
+            start_time=start_time,
+            end_time=end_time,
+            specific_force_body=delta_v / dt,
+            angular_rate_body=delta_theta / dt,
+            temperature_celsius=temperature_celsius,
+        )
+    ####
+
+    def _corrupt_ideal_rates(
+            self,
+            *,
+            start_time: float,
+            end_time: float,
+            specific_force_body: ndarray,
+            angular_rate_body: ndarray,
+            temperature_celsius: float | None,
+    ) -> ImuOutput:
+        """Apply the configured deterministic and stochastic channel pipeline."""
+        dt = end_time - start_time
+        a_cfg, g_cfg = self.config.accelerometer, self.config.gyroscope
+        a_runtime, g_runtime = self._accel_runtime, self._gyro_runtime
+        self._accel_bias = gauss_markov(
+            self._accel_bias, a_runtime.bias_std, a_cfg.bias_correlation_time, dt, self.rng
+        )
+        self._gyro_bias = gauss_markov(
+            self._gyro_bias, g_runtime.bias_std, g_cfg.bias_correlation_time, dt, self.rng
+        )
         accel_flicker = self._accel_flicker.step(dt, self.rng)
         gyro_flicker = self._gyro_flicker.step(dt, self.rng)
         if temperature_celsius is None:
@@ -408,29 +514,81 @@ class ImuModel:
             a_thermal = self._accel_thermal_model.evaluate(temperature_celsius)
             g_thermal = self._gyro_thermal_model.evaluate(temperature_celsius)
         ####
-        accel = self._accel_misalignment @ apply_distortions(true_delta_v / dt, a_cfg, a_thermal,
-                                                             a_runtime.scale_factor)
-        gyro = self._gyro_misalignment @ apply_distortions(true_delta_theta / dt, g_cfg, g_thermal,
-                                                           g_runtime.scale_factor)
+        accel_intrinsic = apply_distortions(
+            specific_force_body,
+            a_cfg,
+            a_thermal,
+            a_runtime.scale_factor,
+            a_runtime.fixed_bias,
+            a_runtime.sensitivity_matrix,
+        )
+        gyro_intrinsic = apply_distortions(
+            angular_rate_body,
+            g_cfg,
+            g_thermal,
+            g_runtime.scale_factor,
+            g_runtime.fixed_bias,
+            g_runtime.sensitivity_matrix,
+        )
+        gyro_specific_force_sensitivity = self._gyro_specific_force_sensitivity
+        if temperature_celsius is not None:
+            delta_temperature = temperature_celsius - g_cfg.reference_temperature_celsius
+            gyro_specific_force_sensitivity = (
+                gyro_specific_force_sensitivity
+                + delta_temperature * self._gyro_specific_force_sensitivity_temperature_coefficient
+            )
+        ####
+        gyro_intrinsic = gyro_intrinsic + gyro_specific_force_sensitivity @ specific_force_body
+        accel = self._accel_misalignment @ accel_intrinsic
+        gyro = self._gyro_misalignment @ gyro_intrinsic
         accel_covariance = self._scale_covariance(a_runtime.noise_covariance, a_thermal.noise_multiplier)
         gyro_covariance = self._scale_covariance(g_runtime.noise_covariance, g_thermal.noise_multiplier)
-        accel_noise = white_noise(a_cfg.white_noise_density * a_thermal.noise_multiplier, dt, self.rng,
-                                  accel_covariance)
-        gyro_noise = white_noise(g_cfg.white_noise_density * g_thermal.noise_multiplier, dt, self.rng, gyro_covariance)
+        accel_noise = white_noise(
+            a_cfg.white_noise_density * a_thermal.noise_multiplier, dt, self.rng, accel_covariance
+        )
+        gyro_noise = white_noise(
+            g_cfg.white_noise_density * g_thermal.noise_multiplier, dt, self.rng, gyro_covariance
+        )
         accel = accel + self._accel_turn_on_bias + self._accel_bias + accel_flicker + accel_noise
         gyro = gyro + self._gyro_turn_on_bias + self._gyro_bias + gyro_flicker + gyro_noise
         accel = clip(accel, a_cfg.measurement_range) if a_cfg.apply_clipping else accel
         gyro = clip(gyro, g_cfg.measurement_range) if g_cfg.apply_clipping else gyro
         accel = quantize(accel, a_runtime.quantization_step)
         gyro = quantize(gyro, g_runtime.quantization_step)
-        self._previous_timestamp, self._previous_velocity, self._previous_orientation = timestamp, velocity.copy(), orientation.copy()
         return ImuOutput(
             accel * dt * a_cfg.output_scale * self.config.output_scale_accelerometer,
             gyro * dt * g_cfg.output_scale * self.config.output_scale_gyroscope,
             start_time,
-            timestamp,
+            end_time,
             temperature_celsius,
         )
+    ####
+
+    @staticmethod
+    def _validate_time_and_temperature(timestamp: float, temperature_celsius: float | None) -> None:
+        if not isfinite(timestamp) or (temperature_celsius is not None and not isfinite(temperature_celsius)):
+            raise ValueError("timestamps and temperature_celsius must be finite when supplied")
+        ####
+    ####
+
+    @classmethod
+    def _validate_interval(
+            cls, start_time: float, end_time: float, temperature_celsius: float | None
+    ) -> None:
+        cls._validate_time_and_temperature(start_time, temperature_celsius)
+        cls._validate_time_and_temperature(end_time, temperature_celsius)
+        if end_time <= start_time:
+            raise ValueError("end_time must be greater than start_time")
+        ####
+    ####
+
+    @staticmethod
+    def _validated_vector3(value: ndarray, field_name: str) -> ndarray:
+        vector = asarray(value, dtype=float)
+        if vector.shape != (3,) or not all(isfinite(vector)):
+            raise ValueError(f"{field_name} must be a finite vector with shape (3,)")
+        ####
+        return vector
     ####
 
     @staticmethod

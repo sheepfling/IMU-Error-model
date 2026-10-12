@@ -111,7 +111,7 @@ class FlickerBiasProcess:
     approximation is intended to match a datasheet Allan-deviation plateau.
     """
 
-    def __init__(self, config: AxisConfig):
+    def __init__(self, config: AxisConfig) -> None:
         self._target = config.flicker_bias_std
         self._taus, self._stds = flicker_component_parameters(config)
         self._states = zeros((self._taus.size, 3))

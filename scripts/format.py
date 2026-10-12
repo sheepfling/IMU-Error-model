@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PYTHON_ROOTS = ("src", "tests", "scripts", "examples")
+PYTHON_ROOTS = ("src", "tests", "scripts", "examples", "playground")
 
 def _run(*arguments: str) -> None:
     """Run one formatting command from the repository root."""

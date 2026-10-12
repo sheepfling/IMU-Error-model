@@ -1,0 +1,155 @@
+{
+  "$defs": {
+    "AnalogBandwidthConfig": {
+      "additionalProperties": false,
+      "description": "Independent first-order analog low-pass time constants for the two triads.",
+      "properties": {
+        "accelerometer_time_constant_s": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Accelerometer Time Constant S",
+          "type": "number"
+        },
+        "gyroscope_time_constant_s": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Gyroscope Time Constant S",
+          "type": "number"
+        }
+      },
+      "title": "AnalogBandwidthConfig",
+      "type": "object"
+    },
+    "FractionalSkewConfig": {
+      "additionalProperties": false,
+      "description": "Post-transform causal fractional channel delay.\n\nThis intentionally approximates inter-axis sample-aperture skew after the\nintrinsic sensor transform. It preserves the semantics of full 3x3 intrinsic\nmatrices; true asynchronous pre-transform axis apertures require a richer\nanalog channel model and are not claimed here.",
+      "properties": {
+        "seconds": {
+          "default": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "maxItems": 6,
+          "minItems": 6,
+          "prefixItems": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Seconds",
+          "type": "array"
+        }
+      },
+      "title": "FractionalSkewConfig",
+      "type": "object"
+    },
+    "PhysicalSamplingConfig": {
+      "additionalProperties": false,
+      "description": "Physical oscillator and finite-aperture settings.\n\n``frequency_error_ppm`` changes the actual sample cadence. ``boundary_jitter``\nmoves physical sample boundaries and therefore changes which truth is sampled;\nit is distinct from the reported-clock jitter in :class:`ClockConfig`.",
+      "properties": {
+        "start_time_s": {
+          "default": 0.0,
+          "title": "Start Time S",
+          "type": "number"
+        },
+        "frequency_error_ppm": {
+          "default": 0.0,
+          "exclusiveMinimum": -1000000.0,
+          "title": "Frequency Error Ppm",
+          "type": "number"
+        },
+        "boundary_jitter_bound_s": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Boundary Jitter Bound S",
+          "type": "number"
+        },
+        "jitter_seed": {
+          "default": 0,
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Jitter Seed",
+          "type": "integer"
+        },
+        "aperture_fraction": {
+          "default": 1.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 1.0,
+          "title": "Aperture Fraction",
+          "type": "number"
+        },
+        "truth_substeps": {
+          "default": 8,
+          "maximum": 4096,
+          "minimum": 1,
+          "title": "Truth Substeps",
+          "type": "integer"
+        }
+      },
+      "title": "PhysicalSamplingConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Physical-sampling extension layered ahead of the digital acquisition model.",
+  "properties": {
+    "physical": {
+      "$ref": "#/$defs/PhysicalSamplingConfig",
+      "default": {
+        "start_time_s": 0.0,
+        "frequency_error_ppm": 0.0,
+        "boundary_jitter_bound_s": 0.0,
+        "jitter_seed": 0,
+        "aperture_fraction": 1.0,
+        "truth_substeps": 8
+      }
+    },
+    "analog": {
+      "$ref": "#/$defs/AnalogBandwidthConfig",
+      "default": {
+        "accelerometer_time_constant_s": 0.0,
+        "gyroscope_time_constant_s": 0.0
+      }
+    },
+    "fractional_skew": {
+      "$ref": "#/$defs/FractionalSkewConfig",
+      "default": {
+        "seconds": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "title": "ContinuousAcquisitionConfig",
+  "type": "object"
+}

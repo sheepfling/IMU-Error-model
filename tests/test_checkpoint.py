@@ -137,3 +137,37 @@ def test_file_helpers_accept_an_explicit_checkpoint_codec(tmp_path: Path) -> Non
     testing.assert_array_equal(expected.delta_v, actual.delta_v)
     testing.assert_array_equal(expected.delta_theta, actual.delta_theta)
 ####
+
+
+def test_checkpoint_resume_preserves_direct_ideal_interval_boundary() -> None:
+    model = ImuModel(_config(), default_rng(47))
+    model.measure_ideal_rates(
+        start_time=0.0,
+        end_time=0.1,
+        specific_force_body=array([0.2, -0.1, 9.7]),
+        angular_rate_body=array([0.01, -0.02, 0.03]),
+        temperature_celsius=28.0,
+    )
+    checkpoint = model.snapshot()
+
+    expected = model.measure_ideal_rates(
+        start_time=0.1,
+        end_time=0.25,
+        specific_force_body=array([-0.4, 0.3, 9.5]),
+        angular_rate_body=array([-0.03, 0.02, 0.04]),
+        temperature_celsius=29.0,
+    )
+    resumed = ImuModel.from_checkpoint(checkpoint)
+    actual = resumed.measure_ideal_rates(
+        start_time=0.1,
+        end_time=0.25,
+        specific_force_body=array([-0.4, 0.3, 9.5]),
+        angular_rate_body=array([-0.03, 0.02, 0.04]),
+        temperature_celsius=29.0,
+    )
+
+    testing.assert_array_equal(actual.delta_v, expected.delta_v)
+    testing.assert_array_equal(actual.delta_theta, expected.delta_theta)
+    assert actual.start_time == expected.start_time
+    assert actual.end_time == expected.end_time
+####

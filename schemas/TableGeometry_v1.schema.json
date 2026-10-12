@@ -1,0 +1,124 @@
+{
+  "additionalProperties": false,
+  "description": "One lab setup, or a declared surveyed estimate of that setup.\n\nR = R_tilt @ R_base @ Rx(wx(q)) @ Ry(wy(q)) @ Rz(q) @ R_mount.\nWobble is angle-synchronous, not white attitude noise. The pivot is fixed in\nlocal NED; the lever arm runs from pivot to one colocated IMU triad center,\nexpressed in sensor coordinates. Re-indexing/handling is a separate segment.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "base_rotvec_ned_rad": {
+      "default": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maxItems": 3,
+      "minItems": 3,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Base Rotvec Ned Rad",
+      "type": "array"
+    },
+    "tilt_rotvec_ned_rad": {
+      "default": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maxItems": 3,
+      "minItems": 3,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Tilt Rotvec Ned Rad",
+      "type": "array"
+    },
+    "platform_from_sensor_rotvec_rad": {
+      "default": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maxItems": 3,
+      "minItems": 3,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Platform From Sensor Rotvec Rad",
+      "type": "array"
+    },
+    "wobble_x_rad": {
+      "default": 0.0,
+      "title": "Wobble X Rad",
+      "type": "number"
+    },
+    "wobble_y_rad": {
+      "default": 0.0,
+      "title": "Wobble Y Rad",
+      "type": "number"
+    },
+    "wobble_order": {
+      "default": 1,
+      "maximum": 32,
+      "minimum": 1,
+      "title": "Wobble Order",
+      "type": "integer"
+    },
+    "wobble_phase_rad": {
+      "default": 0.0,
+      "title": "Wobble Phase Rad",
+      "type": "number"
+    },
+    "lever_arm_sensor_m": {
+      "default": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maxItems": 3,
+      "minItems": 3,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Lever Arm Sensor M",
+      "type": "array"
+    }
+  },
+  "title": "TableGeometry",
+  "type": "object"
+}

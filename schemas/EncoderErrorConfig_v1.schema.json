@@ -1,0 +1,71 @@
+{
+  "additionalProperties": false,
+  "description": "Simulation-only encoder errors; not attached to observed recordings.\n\nEncoder angles are continuous/unwrapped. Clock jitter changes tags only;\nphysical encoder sampling jitter would change the supplied query times.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "angle_offset_rad": {
+      "default": 0.0,
+      "title": "Angle Offset Rad",
+      "type": "number"
+    },
+    "scale_error_ppm": {
+      "default": 0.0,
+      "exclusiveMinimum": -1000000.0,
+      "title": "Scale Error Ppm",
+      "type": "number"
+    },
+    "cyclic_error_rad": {
+      "default": 0.0,
+      "title": "Cyclic Error Rad",
+      "type": "number"
+    },
+    "cyclic_order": {
+      "default": 1,
+      "maximum": 32,
+      "minimum": 1,
+      "title": "Cyclic Order",
+      "type": "integer"
+    },
+    "cyclic_phase_rad": {
+      "default": 0.0,
+      "title": "Cyclic Phase Rad",
+      "type": "number"
+    },
+    "angle_noise_std_rad": {
+      "default": 0.0,
+      "minimum": 0.0,
+      "title": "Angle Noise Std Rad",
+      "type": "number"
+    },
+    "quantization_rad": {
+      "default": 0.0,
+      "minimum": 0.0,
+      "title": "Quantization Rad",
+      "type": "number"
+    },
+    "clock_offset_s": {
+      "default": 0.0,
+      "title": "Clock Offset S",
+      "type": "number"
+    },
+    "clock_frequency_error_ppm": {
+      "default": 0.0,
+      "exclusiveMinimum": -1000000.0,
+      "title": "Clock Frequency Error Ppm",
+      "type": "number"
+    },
+    "timestamp_jitter_bound_s": {
+      "default": 0.0,
+      "minimum": 0.0,
+      "title": "Timestamp Jitter Bound S",
+      "type": "number"
+    }
+  },
+  "title": "EncoderErrorConfig",
+  "type": "object"
+}

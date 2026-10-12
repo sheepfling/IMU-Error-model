@@ -30,12 +30,15 @@ def _readonly_matrix(value: tuple[tuple[float, float, float], ...] | ndarray | N
 class CompiledAxisConfig:
     """Immutable NumPy representation of configuration-derived axis values."""
 
+    fixed_bias: ndarray
     scale_factor: ndarray
+    sensitivity_matrix: ndarray | None
     turn_on_bias_std: ndarray
     bias_std: ndarray
     thermal_bias_coefficient: ndarray
     thermal_noise_coefficient: ndarray
     thermal_scale_factor_coefficient: ndarray
+    thermal_sensitivity_matrix_coefficient: ndarray | None
     noise_covariance: ndarray | None
     quantization_step: ndarray | None
     misalignment_covariance: ndarray | None
@@ -48,12 +51,15 @@ def _compile_axis_config_cached(config_json: str) -> CompiledAxisConfig:
     noise_covariance = _readonly_matrix(config.noise_covariance)
     quantization_step = None if config.quantization_step is None else _vector3(config.quantization_step)
     return CompiledAxisConfig(
+        fixed_bias=_vector3(config.fixed_bias),
         scale_factor=_vector3(config.scale_factor),
+        sensitivity_matrix=_readonly_matrix(config.sensitivity_matrix),
         turn_on_bias_std=_vector3(config.turn_on_bias_std),
         bias_std=_vector3(config.bias_std),
         thermal_bias_coefficient=_vector3(config.thermal_bias_coefficient),
         thermal_noise_coefficient=_vector3(config.thermal_noise_coefficient),
         thermal_scale_factor_coefficient=_vector3(config.thermal_scale_factor_coefficient),
+        thermal_sensitivity_matrix_coefficient=_readonly_matrix(config.thermal_sensitivity_matrix_coefficient),
         noise_covariance=noise_covariance,
         quantization_step=quantization_step,
         misalignment_covariance=_readonly_matrix(config.misalignment_covariance),

@@ -46,7 +46,7 @@ class ImuModelCheckpoint(BaseModel):
     ]
     accelerometer_misalignment: Annotated[Matrix3, Field(description="Sampled accelerometer misalignment matrix.")]
     gyroscope_misalignment: Annotated[Matrix3, Field(description="Sampled gyroscope misalignment matrix.")]
-    previous_timestamp: Annotated[float | None, Field(description="Timestamp of the previous truth sample.")]
+    previous_timestamp: Annotated[float | None, Field(description="Timestamp of the previous measurement boundary.")]
     previous_velocity: Annotated[Vector3 | None, Field(description="Previous gravity-excluded truth velocity.")]
     previous_orientation: Annotated[Matrix3 | None, Field(description="Previous world-from-body orientation matrix.")]
     thermal_model_type: Annotated[

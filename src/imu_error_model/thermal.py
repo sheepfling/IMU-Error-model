@@ -14,6 +14,7 @@ class ThermalState:
     bias_offset: float | ndarray = 0.0
     noise_multiplier: float | ndarray = 1.0
     scale_factor_offset: float | ndarray = 0.0
+    sensitivity_matrix_offset: ndarray | None = None
 ####
 
 
@@ -32,6 +33,7 @@ class LinearThermalModel:
         self._bias_coefficient = compiled.thermal_bias_coefficient
         self._noise_coefficient = compiled.thermal_noise_coefficient
         self._scale_factor_coefficient = compiled.thermal_scale_factor_coefficient
+        self._sensitivity_matrix_coefficient = compiled.thermal_sensitivity_matrix_coefficient
     ####
 
     def evaluate(self, temperature_celsius: float) -> ThermalState:
@@ -45,6 +47,11 @@ class LinearThermalModel:
             bias_offset=self._bias_coefficient * delta,
             noise_multiplier=multiplier,
             scale_factor_offset=self._scale_factor_coefficient * delta,
+            sensitivity_matrix_offset=(
+                None
+                if self._sensitivity_matrix_coefficient is None
+                else self._sensitivity_matrix_coefficient * delta
+            ),
         )
     ####
 ####

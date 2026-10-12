@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "description": "Externally supplied metrology estimates, not inferred from simulator config.\n\nZero defaults are an explicit assumption, not a claim of a calibrated encoder.\nClock mapping uses the lab zero epoch. Cyclic errors remain model mismatch.",
+  "properties": {
+    "angle_offset_rad": {
+      "default": 0.0,
+      "title": "Angle Offset Rad",
+      "type": "number"
+    },
+    "scale_error_ppm": {
+      "default": 0.0,
+      "exclusiveMinimum": -1000000.0,
+      "title": "Scale Error Ppm",
+      "type": "number"
+    },
+    "clock_offset_s": {
+      "default": 0.0,
+      "title": "Clock Offset S",
+      "type": "number"
+    },
+    "clock_frequency_error_ppm": {
+      "default": 0.0,
+      "exclusiveMinimum": -1000000.0,
+      "title": "Clock Frequency Error Ppm",
+      "type": "number"
+    }
+  },
+  "title": "EncoderCorrection",
+  "type": "object"
+}

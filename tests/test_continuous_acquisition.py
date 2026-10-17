@@ -14,8 +14,8 @@ from imu_error_model import (
 )
 
 
-def _zero_truth(time_s: float) -> ContinuousTruthSample:
-    del time_s
+def _zero_truth(physical_time_s: float) -> ContinuousTruthSample:
+    del physical_time_s
     return ContinuousTruthSample(specific_force_body=(0.0, 0.0, 0.0), angular_rate_body=(0.0, 0.0, 0.0))
 ####
 
@@ -37,8 +37,8 @@ def test_physical_boundary_jitter_is_deterministic_and_changes_truth_sampling() 
     a = ContinuousAcquiredImuModel(continuous_config=cfg)
     b = ContinuousAcquiredImuModel(continuous_config=cfg)
 
-    def ramp(time_s: float) -> ContinuousTruthSample:
-        return ContinuousTruthSample(specific_force_body=(time_s, 0.0, 0.0), angular_rate_body=(0.0, 0.0, 0.0))
+    def ramp(physical_time_s: float) -> ContinuousTruthSample:
+        return ContinuousTruthSample(specific_force_body=(physical_time_s, 0.0, 0.0), angular_rate_body=(0.0, 0.0, 0.0))
     ####
 
     left = [a.measure_next(ramp) for _ in range(20)]
@@ -57,10 +57,10 @@ def test_finite_aperture_quadrature_matches_sinusoid_interval_average() -> None:
         continuous_config=ContinuousAcquisitionConfig(physical=PhysicalSamplingConfig(truth_substeps=512)),
     )
 
-    def truth(time_s: float) -> ContinuousTruthSample:
+    def truth(physical_time_s: float) -> ContinuousTruthSample:
         return ContinuousTruthSample(
             specific_force_body=(0.0, 0.0, 0.0),
-            angular_rate_body=(sin(2.0*pi*frequency_hz*time_s), 0.0, 0.0),
+            angular_rate_body=(sin(2.0*pi*frequency_hz*physical_time_s), 0.0, 0.0),
         )
     ####
 
@@ -82,10 +82,10 @@ def test_analog_lowpass_matches_frequency_response_after_settling() -> None:
         ),
     )
 
-    def truth(time_s: float) -> ContinuousTruthSample:
+    def truth(physical_time_s: float) -> ContinuousTruthSample:
         return ContinuousTruthSample(
             specific_force_body=(0.0, 0.0, 0.0),
-            angular_rate_body=(sin(2.0*pi*frequency_hz*time_s), 0.0, 0.0),
+            angular_rate_body=(sin(2.0*pi*frequency_hz*physical_time_s), 0.0, 0.0),
         )
     ####
 
@@ -113,9 +113,9 @@ def test_fractional_skew_delays_post_transform_ramp() -> None:
         ),
     )
 
-    def ramp(time_s: float) -> ContinuousTruthSample:
+    def ramp(physical_time_s: float) -> ContinuousTruthSample:
         return ContinuousTruthSample(
-            specific_force_body=(0.0, 0.0, 0.0), angular_rate_body=(time_s, 0.0, 0.0),
+            specific_force_body=(0.0, 0.0, 0.0), angular_rate_body=(physical_time_s, 0.0, 0.0),
         )
     ####
 

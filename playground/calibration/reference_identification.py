@@ -127,7 +127,10 @@ def fit_encoder_timing(reference_law: AngleLaw, starts_s: FloatArray, ends_s: Fl
     def profile(delay: float) -> tuple[float, FloatArray, FloatArray]:
         reference = reference_law.mean_rate(starts - delay, ends - delay)
         x = np.column_stack((reference, np.ones(len(starts))))
-        coefficients = np.linalg.lstsq(x, y, rcond=None)[0]
+        coefficients = np.asarray(
+            np.linalg.lstsq(x, y, rcond=None)[0],
+            dtype=np.float64,
+        )
         residual = y - x @ coefficients
         cost = float(residual @ residual) if coefficients[0] > 0 else float("inf")
         return cost, coefficients, residual

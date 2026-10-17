@@ -119,6 +119,8 @@ def test_predeclared_multiple_looks_widen_intervals() -> None:
     multiple = _plan(radians(.03),count=30000,looks=7)
     assert single.target_met
     assert not multiple.target_met
+    assert single.half_width_rad is not None
+    assert multiple.half_width_rad is not None
     assert multiple.half_width_rad > single.half_width_rad
 ####
 

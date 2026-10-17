@@ -9,7 +9,7 @@ from imu_error_model.acquisition_config import AcquisitionConfig, FirFilterConfi
 from playground.calibration.earth_reference import LocalEarthReference
 from playground.calibration.known_reference import calibration_parameter_error
 from playground.calibration.reference_equipment import AngleLaw, RateTableReference, TableGeometry, aperture_reference
-from playground.calibration.reference_observations import EncoderCorrection, EncoderErrorConfig, EncoderObservations, MeasuredImuRecord, combine_observed_records, fit_encoder_law, fit_observed_calibration, reconstruct_reference, simulate_encoder, simulate_table_record
+from playground.calibration.reference_observations import EncoderCorrection, EncoderErrorConfig, EncoderObservations, _validated_valid_channels, combine_observed_records, fit_encoder_law, fit_observed_calibration, reconstruct_reference, simulate_encoder, simulate_table_record
 
 
 def _law() -> AngleLaw:
@@ -69,7 +69,7 @@ def test_encoder_fit_rejects_short_uninformative_time_window() -> None:
 
 def test_table_record_keeps_truth_separate_and_honors_acquisition_startup() -> None:
     model=AcquiredImuModel(acquisition_config=AcquisitionConfig(sample_period_s=.02,accelerometer_filter=FirFilterConfig(taps=(.5,.5))))
-    edges=np.arange(201)*.02
+    edges=np.arange(201,dtype=np.float64)*.02
     p=RateTableReference(LocalEarthReference(.6),_law(),TableGeometry())
     record,truth=simulate_table_record(model,p,edges[:-1],edges[1:])
     assert {f.name for f in fields(record)} == {"starts_s","ends_s","rates_si","valid_channels","temperatures_celsius","source_id"}
@@ -85,7 +85,7 @@ def test_table_record_keeps_truth_separate_and_honors_acquisition_startup() -> N
 
 def test_truth_cannot_be_passed_as_an_observed_fit() -> None:
     p=RateTableReference(LocalEarthReference(.6),AngleLaw(),TableGeometry())
-    truth=aperture_reference(p,np.array([0.]),np.array([.1]))
+    truth=aperture_reference(p,np.array([0.],dtype=np.float64),np.array([.1],dtype=np.float64))
     with pytest.raises(TypeError):
         fit_observed_calibration(truth)  # type: ignore[arg-type]
     ####
@@ -97,7 +97,7 @@ def test_truth_cannot_be_passed_as_an_observed_fit() -> None:
 
 def test_reference_reconstruction_refuses_encoder_extrapolation() -> None:
     model=AcquiredImuModel(acquisition_config=AcquisitionConfig(sample_period_s=.02))
-    edges=np.arange(101)*.02
+    edges=np.arange(101,dtype=np.float64)*.02
     p=RateTableReference(LocalEarthReference(.6),_law(),TableGeometry())
     record,_=simulate_table_record(model,p,edges[:-1],edges[1:])
     encoder=simulate_encoder(_law(),np.linspace(.1,1.9,101),EncoderErrorConfig(),rng=np.random.default_rng(2))
@@ -109,7 +109,7 @@ def test_reference_reconstruction_refuses_encoder_extrapolation() -> None:
 
 def test_bad_sensor_record_is_rejected() -> None:
     with pytest.raises(ValueError,match="boolean"):
-        MeasuredImuRecord(np.array([0.]),np.array([.1]),np.zeros((1,6)),np.ones((1,6)),np.array([25.]),"imu")
+        _validated_valid_channels(np.ones((1,6)), 1)
     ####
 ####
 
@@ -123,7 +123,7 @@ def test_observed_encoder_and_survey_recover_full_intrinsics_without_truth_argum
         law=AngleLaw(rate_radps=.6+.1*i,sine_rad=.3,frequency_hz=.25)
         survey=TableGeometry(platform_from_sensor_rotvec_rad=mount,tilt_rotvec_ned_rad=(.01,-.02,.003),wobble_x_rad=.003,wobble_y_rad=.004,lever_arm_sensor_m=(.03,-.02,.01))
         provider=RateTableReference(earth,law,survey)
-        edges=np.arange(201)*.04
+        edges=np.arange(201,dtype=np.float64)*.04
         record,_evaluator_only=simulate_table_record(AcquiredImuModel(config,AcquisitionConfig(sample_period_s=.04)),provider,edges[:-1],edges[1:],source_id=f"pose-{i}")
         encoder=simulate_encoder(law,np.linspace(0,8,401),EncoderErrorConfig(),rng=np.random.default_rng(i))
         fit=fit_encoder_law(encoder,frequency_hz=.25)
@@ -139,7 +139,7 @@ def test_segmented_acquisition_preserves_one_run_realization() -> None:
     config=ImuConfig(gyroscope=AxisConfig(turn_on_bias_std=.003,white_noise_density=.0001))
     acquisition=AcquisitionConfig(sample_period_s=.02)
     p=RateTableReference(LocalEarthReference(.6),_law(),TableGeometry())
-    edges=np.arange(101)*.02
+    edges=np.arange(101,dtype=np.float64)*.02
     full,_=simulate_table_record(AcquiredImuModel(config,acquisition,sensor_rng=np.random.default_rng(9)),p,edges[:-1],edges[1:])
     split_model=AcquiredImuModel(config,acquisition,sensor_rng=np.random.default_rng(9))
     a,_=simulate_table_record(split_model,p,edges[:50],edges[1:51])
@@ -151,7 +151,7 @@ def test_segmented_acquisition_preserves_one_run_realization() -> None:
 @pytest.mark.parametrize("kwargs", ({"scale_error_ppm":-1e6},{"angle_noise_std_rad":-1.},{"clock_offset_s":float("nan")},{"cyclic_order":True},{"quantization_rad":-1.}))
 def test_encoder_config_validation(kwargs: dict[str, object]) -> None:
     with pytest.raises(ValueError):
-        EncoderErrorConfig(**kwargs)
+        EncoderErrorConfig.model_validate(kwargs)
     ####
 ####
 
@@ -160,7 +160,12 @@ def test_sensor_runner_rejects_physical_gaps_before_resetting() -> None:
     model=AcquiredImuModel(acquisition_config=AcquisitionConfig(sample_period_s=.02))
     checkpoint=model.snapshot()
     with pytest.raises(ValueError,match="contiguous"):
-        simulate_table_record(model,RateTableReference(LocalEarthReference(.6),_law(),TableGeometry()),np.array([0.,.04]),np.array([.02,.06]))
+        simulate_table_record(
+            model,
+            RateTableReference(LocalEarthReference(.6),_law(),TableGeometry()),
+            np.array([0.,.04],dtype=np.float64),
+            np.array([.02,.06],dtype=np.float64),
+        )
     ####
     assert model.snapshot()==checkpoint
 ####

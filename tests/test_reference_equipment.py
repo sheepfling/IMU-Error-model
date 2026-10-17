@@ -122,7 +122,7 @@ def test_legacy_turntable_earth_projection_uses_correct_physical_axis(label: str
 @pytest.mark.parametrize("kwargs", ({"wobble_order":0},{"wobble_order":True},{"wobble_x_rad":float("nan")},{"tilt_rotvec_ned_rad":(0.,0.)},{"lever_arm_sensor_m":(0.,0.,float("inf"))}))
 def test_geometry_validation(kwargs: dict[str, object]) -> None:
     with pytest.raises(ValueError):
-        TableGeometry(**kwargs)
+        TableGeometry.model_validate(kwargs)
     ####
 ####
 
@@ -158,10 +158,27 @@ def test_heading_covariance_rejects_negative_variance_and_supports_physical_sign
     from playground.calibration.known_reference import fit_known_reference_calibration, simulate_reference_program, ferraris_style_reference_program
     cal=fit_known_reference_calibration(simulate_reference_program(ImuModel(),ferraris_style_reference_program()))
     earth=LocalEarthReference(.6)
-    args=dict(latitude_rad=.6,earth_rotation_radps=earth.earth_rotation_radps,gravity_mps2=float(earth.gravity_ned_mps2[2]),accelerometer_convention="specific_force")
-    valid=propagate_heading_uncertainty(-earth.gravity_ned_mps2,earth.earth_rotation_ned_radps,np.diag([1e-8]*3+[1e-14]*3),cal,**args)
+    valid=propagate_heading_uncertainty(
+        -earth.gravity_ned_mps2,
+        earth.earth_rotation_ned_radps,
+        np.diag([1e-8]*3+[1e-14]*3),
+        cal,
+        latitude_rad=.6,
+        earth_rotation_radps=earth.earth_rotation_radps,
+        gravity_mps2=float(earth.gravity_ned_mps2[2]),
+        accelerometer_convention="specific_force",
+    )
     assert 0<valid.confidence_95_half_width_deg<1
     with pytest.raises(ValueError,match="positive semidefinite"):
-        propagate_heading_uncertainty(-earth.gravity_ned_mps2,earth.earth_rotation_ned_radps,np.diag([-1e-8]+[1e-8]*5),cal,**args)
+        propagate_heading_uncertainty(
+            -earth.gravity_ned_mps2,
+            earth.earth_rotation_ned_radps,
+            np.diag([-1e-8]+[1e-8]*5),
+            cal,
+            latitude_rad=.6,
+            earth_rotation_radps=earth.earth_rotation_radps,
+            gravity_mps2=float(earth.gravity_ned_mps2[2]),
+            accelerometer_convention="specific_force",
+        )
     ####
 ####

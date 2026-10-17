@@ -33,22 +33,23 @@ def test_two_position_maytag_rejects_fixed_turn_on_heading_bias() -> None:
         }
     )
     truth_heading = 20.0 * pi / 180.0
-    kwargs = dict(
+    one = simulate_maytag_gyrocompass(
+        ImuModel(compass_config, rng=random.default_rng(42)),
         calibration=calibration,
         latitude_rad=34.7304 * pi / 180.0,
         heading_rad=truth_heading,
+        position_count=1,
         samples_per_position=100,
         sample_period_s=0.02,
     )
-    one = simulate_maytag_gyrocompass(
-        ImuModel(compass_config, rng=random.default_rng(42)),
-        position_count=1,
-        **kwargs,
-    )
     two = simulate_maytag_gyrocompass(
         ImuModel(compass_config, rng=random.default_rng(42)),
+        calibration=calibration,
+        latitude_rad=34.7304 * pi / 180.0,
+        heading_rad=truth_heading,
         position_count=2,
-        **kwargs,
+        samples_per_position=100,
+        sample_period_s=0.02,
     )
     one_error = abs(wrap_angle_rad(one.heading_rad - truth_heading))
     two_error = abs(wrap_angle_rad(two.heading_rad - truth_heading))

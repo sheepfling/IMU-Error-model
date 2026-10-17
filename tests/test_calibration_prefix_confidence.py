@@ -54,6 +54,7 @@ def test_prefix_trace_reports_first_quality_pass_and_confidence_target() -> None
     )
     assert accepted_widths[-1] < accepted_widths[0]
     assert trace.points[-1].minimum_effective_sample_size is not None
+    assert trace.points[2].minimum_effective_sample_size is not None
     assert trace.points[-1].minimum_effective_sample_size > trace.points[2].minimum_effective_sample_size
 ####
 

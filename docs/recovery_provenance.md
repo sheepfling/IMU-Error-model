@@ -35,28 +35,36 @@ validation environment.
 
 ## Local verification
 
-Local checks on Python 3.13.15 completed on 2026-10-12:
+Local checks on Python 3.13.15 completed on 2026-10-17:
 
 - The full test suite passed with 346 passed and one optional `imucal` skip.
 - The wheel build, isolated install, package-content check, and installed-package
   test run passed with the same 346 passed and one skipped result.
 
 - Ruff, scope-marker validation, Markdown validation, and `pip check` passed.
-- Pyright passed for `src`, `examples`, and `playground` with zero diagnostics.
-- The separate Pyright test configuration reports 90 typing diagnostics in
-  recovered tests. This remains an open quality gate; the draft is not
-  release-ready.
+- Pyright passed both configured profiles with zero diagnostics: source
+  (`src`, `examples`, and `playground`) and the separate test profile.
+
+- Before these type-only corrections, the hosted Python 3.11 source profile in
+  failed Actions run `38286587470`
+  reported one `reportReturnType` error in
+  `playground/calibration/reference_identification.py`. That run stopped before
+  reaching the test profile. A local baseline of the test profile reported 90
+  diagnostics (88 `reportArgumentType`, 2 `reportOperatorIssue`). After the
+  corrections, both local profiles report zero diagnostics.
 
 - The Tranche 6 Ferraris X/Y frame regression passed as a focused test.
 
-No hosted CI workflow was dispatched. The optional live `imucal` comparison
-was not run because that extra is not installed in the local environment.
+The optional live `imucal` comparison was not run because that extra is not
+installed in the local environment. No workflow was dispatched by request; the
+PR's normal pull-request workflow is the hosted validation path.
 
 ## Optional dependency status
 
-The current source keeps `imucal` behind the `calibration` extra. PyPI's
-project page lists 2.6.0 as the latest release and declares Python
-`>=3.9,<3.14`, so the source constraint `imucal>=2.6,<3` includes the current
-release and supports the project's Python 3.11–3.13 range. This metadata was
-checked on 2026-10-12; it does not constitute a live optional-adapter test.
-The release metadata was checked on the official PyPI project page.
+The current source keeps `imucal` behind the `calibration` extra. As checked on
+2026-10-17, the PyPI project page lists 2.6.0 as its latest release, uploaded
+on 2024-10-31, with `Requires-Python >=3.9,<3.14` and Python 3.9–3.13
+classifiers. The source constraint `imucal>=2.6,<3` includes that release and
+its declared interpreter range covers this project's Python 3.11 and 3.12
+support. Metadata compatibility is not a live optional-adapter test; the extra
+was not installed or exercised here.

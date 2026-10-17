@@ -189,10 +189,7 @@ class MeasuredImuRecord:
         for name, value, shape in (("starts_s", starts, (n,)), ("ends_s", ends, (n,)), ("rates_si", self.rates_si, (n, 6)), ("temperatures_celsius", self.temperatures_celsius, (n,))):
             object.__setattr__(self, name, readonly(value, shape, name))
         ####
-        validity = np.asarray(self.valid_channels)
-        if validity.shape != (n, 6) or validity.dtype != bool:
-            raise ValueError("valid_channels must be a boolean (n, 6) array")
-        ####
+        validity = _validated_valid_channels(self.valid_channels, n)
         validity = validity.copy()
         validity.setflags(write=False)
         object.__setattr__(self, "valid_channels", validity)
@@ -200,6 +197,16 @@ class MeasuredImuRecord:
             raise ValueError("IMU source_id is required")
         ####
     ####
+####
+
+
+def _validated_valid_channels(value: object, row_count: int) -> NDArrayBool:
+    """Check an untrusted validity mask without coercing its dtype."""
+    validity = np.asarray(value)
+    if validity.shape != (row_count, 6) or validity.dtype != np.dtype(np.bool_):
+        raise ValueError("valid_channels must be a boolean (n, 6) array")
+    ####
+    return np.asarray(validity, dtype=np.bool_)
 ####
 
 

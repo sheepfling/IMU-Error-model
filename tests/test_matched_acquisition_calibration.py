@@ -102,8 +102,8 @@ def _simulate_dynamic_record(
         "dynamic-calibration",
     )
     reference = ApertureReference(
-        np.arange(samples) * dt,
-        (np.arange(samples) + 1) * dt,
+        np.arange(samples, dtype=np.float64) * dt,
+        (np.arange(samples, dtype=np.float64) + 1) * dt,
         force,
         rate,
         np.zeros((samples, 3, 3)),
@@ -183,7 +183,7 @@ def test_reported_clock_is_corrected_before_reference_reconstruction() -> None:
     law = AngleLaw(rate_radps=.8, sine_rad=.3, cosine_rad=.1, frequency_hz=.23)
     geometry = TableGeometry(tilt_rotvec_ned_rad=(.01, -.02, .003), wobble_x_rad=.002, wobble_y_rad=.003)
     acquisition = AcquisitionConfig(sample_period_s=.02, clock=ClockConfig(offset_s=.031, frequency_error_ppm=750.0))
-    physical_edges = np.arange(501) * acquisition.sample_period_s
+    physical_edges = np.arange(501, dtype=np.float64) * acquisition.sample_period_s
     record, truth = simulate_table_record(
         AcquiredImuModel(ImuConfig(), acquisition),
         RateTableReference(earth, law, geometry),
@@ -247,7 +247,7 @@ def _clock_predictor(frequencies: tuple[float, ...], signs: tuple[float, ...] = 
 
 def test_multichannel_clock_fit_recovers_offset_frequency_and_generalizes() -> None:
     dt = .02
-    physical_edges = np.arange(1001) * dt
+    physical_edges = np.arange(1001, dtype=np.float64) * dt
     offset = .027
     ppm = 420.0
     reported_edges = offset + physical_edges * (1.0 + ppm * 1e-6)
@@ -269,7 +269,7 @@ def test_multichannel_clock_fit_recovers_offset_frequency_and_generalizes() -> N
     np.testing.assert_allclose(fit.gains, gains, atol=2e-6)
     np.testing.assert_allclose(fit.biases, biases, atol=2e-6)
 
-    held_edges = np.arange(501) * .03 + 40.0
+    held_edges = np.arange(501, dtype=np.float64) * .03 + 40.0
     held_reported = offset + held_edges * (1.0 + ppm * 1e-6)
     held_predictor = _clock_predictor((.29, .37, .47, .59, .71, .83), (-1, 1, -1, 1, -1, 1))
     expected = held_predictor(held_edges[:-1], held_edges[1:]) * gains + biases
@@ -279,7 +279,7 @@ def test_multichannel_clock_fit_recovers_offset_frequency_and_generalizes() -> N
 
 
 def test_constant_reference_exposes_clock_frequency_sensor_scale_gauge() -> None:
-    starts = np.arange(200) * .02
+    starts = np.arange(200, dtype=np.float64) * .02
     ends = starts + .02
 
     def constant_predictor(s: np.ndarray, e: np.ndarray) -> np.ndarray:

@@ -52,10 +52,16 @@ def link_target_error(target: str) -> str | None:
 
 
 def is_gitignored(relative: str) -> bool:
+    """Return whether a path is ignored when repository metadata is available."""
+    if not (ROOT / ".git").exists():
+        return False
+    ####
     result = subprocess.run(
         ["git", "check-ignore", "--no-index", "--quiet", "--", relative],
         cwd=ROOT,
         check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     return result.returncode == 0
 ####

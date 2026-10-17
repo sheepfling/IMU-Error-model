@@ -8,11 +8,30 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, ValidationInfo, fiel
 DEFAULT_REFERENCE_TEMPERATURE_C = 25.0
 
 AxisValue = float | tuple[float, float, float]
-Covariance3 = tuple[
+Matrix3 = tuple[
     tuple[float, float, float],
     tuple[float, float, float],
     tuple[float, float, float],
 ]
+Covariance3 = Matrix3
+
+
+def _finite_matrix3(value: object | None, field_name: str) -> Matrix3 | None:
+    """Validate and normalize an optional finite 3x3 matrix."""
+    if value is None:
+        return None
+    ####
+    matrix = asarray(value, dtype=float)
+    if matrix.shape != (3, 3) or not bool(all_values(isfinite(matrix))):
+        raise ValueError(f"{field_name} must be a finite 3x3 matrix")
+    ####
+    return (
+        (float(matrix[0, 0]), float(matrix[0, 1]), float(matrix[0, 2])),
+        (float(matrix[1, 0]), float(matrix[1, 1]), float(matrix[1, 2])),
+        (float(matrix[2, 0]), float(matrix[2, 1]), float(matrix[2, 2])),
+    )
+####
+
 
 class AxisConfig(BaseModel):
     """Noise and deterministic error parameters for one 3-axis channel."""
@@ -78,12 +97,24 @@ class AxisConfig(BaseModel):
             description="Number of first-order components used to approximate flicker bias; must be at least 2 when flicker bias is enabled.",
         ),
     ] = 8
+    fixed_bias: Annotated[
+        AxisValue,
+        Field(
+            description="Fixed realized additive bias in sensor units, as a scalar broadcast to all axes or a finite three-axis vector."
+        ),
+    ] = 0.0
     scale_factor: Annotated[
         AxisValue,
         Field(
             description="Dimensionless multiplicative scale-factor error, as a scalar broadcast to all axes or a finite three-axis vector."
         ),
     ] = 0.0
+    sensitivity_matrix: Annotated[
+        Matrix3 | None,
+        Field(
+            description="Optional fixed forward 3x3 sensitivity matrix applied after diagonal scale and nonlinearity; identity is used when omitted."
+        ),
+    ] = None
     nonlinear_factor: Annotated[
         float,
         Field(
@@ -131,6 +162,12 @@ class AxisConfig(BaseModel):
             description="Scale-factor temperature coefficient per degree Celsius, as a scalar or finite three-axis vector."
         ),
     ] = 0.0
+    thermal_sensitivity_matrix_coefficient: Annotated[
+        Matrix3 | None,
+        Field(
+            description="Optional additive 3x3 temperature coefficient per degree Celsius for cross-axis sensitivity drift."
+        ),
+    ] = None
     reference_temperature_celsius: Annotated[
         float,
         Field(
@@ -160,7 +197,7 @@ class AxisConfig(BaseModel):
         float, Field(gt=0.0, description="Positive finite output scale applied to this channel's reported increments.")
     ] = 1.0
 
-    @field_validator("turn_on_bias_std", "bias_std", "scale_factor", "quantization_step")
+    @field_validator("turn_on_bias_std", "bias_std", "fixed_bias", "scale_factor", "quantization_step")
     @classmethod
     def finite_axis_value(cls, value: AxisValue | None, info: ValidationInfo) -> AxisValue | None:
         if value is None:
@@ -199,6 +236,18 @@ class AxisConfig(BaseModel):
             raise ValueError("output_scale must be finite")
         ####
         return value
+    ####
+
+    @field_validator("sensitivity_matrix", mode="before")
+    @classmethod
+    def validate_sensitivity_matrix(cls, value: object | None) -> Matrix3 | None:
+        return _finite_matrix3(value, "sensitivity_matrix")
+    ####
+
+    @field_validator("thermal_sensitivity_matrix_coefficient", mode="before")
+    @classmethod
+    def validate_thermal_sensitivity_matrix_coefficient(cls, value: object | None) -> Matrix3 | None:
+        return _finite_matrix3(value, "thermal_sensitivity_matrix_coefficient")
     ####
 
     @field_validator("misalignment_covariance")
@@ -280,6 +329,18 @@ class ImuConfig(BaseModel):
     gyroscope: Annotated[AxisConfig, Field(description="Configuration for the three-axis gyroscope channel.")] = (
         AxisConfig()
     )
+    gyroscope_specific_force_sensitivity: Annotated[
+        Matrix3 | None,
+        Field(
+            description="Optional fixed 3x3 gyro specific-force sensitivity in rad/s per m/s², mapping ideal accelerometer specific force into gyro rate."
+        ),
+    ] = None
+    gyroscope_specific_force_sensitivity_temperature_coefficient: Annotated[
+        Matrix3 | None,
+        Field(
+            description="Optional 3x3 gyro specific-force-sensitivity temperature coefficient in rad/s per m/s² per degree Celsius."
+        ),
+    ] = None
     output_scale_accelerometer: Annotated[
         float,
         Field(
@@ -290,6 +351,18 @@ class ImuConfig(BaseModel):
         float,
         Field(gt=0.0, allow_inf_nan=False, description="Positive multiplier applied to reported gyroscope increments."),
     ] = 1.0
+
+    @field_validator("gyroscope_specific_force_sensitivity", mode="before")
+    @classmethod
+    def validate_gyroscope_specific_force_sensitivity(cls, value: object | None) -> Matrix3 | None:
+        return _finite_matrix3(value, "gyroscope_specific_force_sensitivity")
+    ####
+
+    @field_validator("gyroscope_specific_force_sensitivity_temperature_coefficient", mode="before")
+    @classmethod
+    def validate_gyroscope_specific_force_sensitivity_temperature_coefficient(cls, value: object | None) -> Matrix3 | None:
+        return _finite_matrix3(value, "gyroscope_specific_force_sensitivity_temperature_coefficient")
+    ####
 ####
 
 

@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "sample_period_s": 0.01,
+  "accelerometer_filter": {
+    "taps": [
+      1.0
+    ]
+  },
+  "gyroscope_filter": {
+    "taps": [
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04,
+      0.04
+    ]
+  },
+  "accelerometer_delay_samples": [
+    0,
+    0,
+    0
+  ],
+  "gyroscope_delay_samples": [
+    0,
+    0,
+    0
+  ],
+  "thermal": {
+    "time_constant_s": 30.0,
+    "initial_die_temperature_celsius": 25.0
+  },
+  "clock": {
+    "epoch_s": 0.0,
+    "offset_s": 0.025,
+    "frequency_error_ppm": 100.0,
+    "timestamp_jitter_bound_s": 0.0002,
+    "jitter_seed": 481
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "description": "Smooth angle in radians as a linear drift plus a declared harmonic basis.\n\nCoefficients can come from commands OR encoder observations. Their source is\nowned by the calling boundary. Negative time is valid for clock alignment.",
+  "properties": {
+    "offset_rad": {
+      "default": 0.0,
+      "title": "Offset Rad",
+      "type": "number"
+    },
+    "rate_radps": {
+      "default": 0.0,
+      "title": "Rate Radps",
+      "type": "number"
+    },
+    "sine_rad": {
+      "default": 0.0,
+      "title": "Sine Rad",
+      "type": "number"
+    },
+    "cosine_rad": {
+      "default": 0.0,
+      "title": "Cosine Rad",
+      "type": "number"
+    },
+    "frequency_hz": {
+      "default": 0.2,
+      "exclusiveMinimum": 0.0,
+      "title": "Frequency Hz",
+      "type": "number"
+    }
+  },
+  "title": "AngleLaw",
+  "type": "object"
+}

@@ -100,8 +100,8 @@ def coverage() -> None:
 ####
 
 def lint() -> None:
-    run("-m", "ruff", "check", "src", "tests", "scripts", "examples")
-    run("scripts/check_scope_markers.py", "src", "scripts", "tests", "examples")
+    run("-m", "ruff", "check", "src", "tests", "scripts", "examples", "playground")
+    run("scripts/check_scope_markers.py", "src", "scripts", "tests", "examples", "playground")
 ####
 
 def format_sources() -> None:
@@ -113,8 +113,8 @@ def markdown() -> None:
 ####
 
 def typecheck() -> None:
-    run("-m", "pyright", "src", "examples")
-    run("-m", "pyright", "-p", "pyright-testsconfig.json")
+    run("-m", "pyright", "--pythonpath", sys.executable, "src", "examples", "playground")
+    run("-m", "pyright", "--pythonpath", sys.executable, "-p", "pyright-testsconfig.json")
 ####
 
 def build() -> None:

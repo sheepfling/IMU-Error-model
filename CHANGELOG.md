@@ -2,7 +2,25 @@
 
 ## Unreleased
 
-Future changes will be listed here.
+- Extend the sensor model with deterministic fixed biases, full forward
+  sensitivity matrices, gyro specific-force sensitivity, and explicit ideal-rate
+  and ideal-increment inputs.
+
+- Add a research calibration playground spanning known-reference Ferraris
+  recovery, Earth-aware turntable metrology, coefficient uncertainty and
+  bootstrap analysis, quality-gated gyrocompassing, matched acquisition, and
+  high-rate coning/sculling verification. The playground remains outside the
+  packaged runtime API.
+
+- Add opt-in acquired and continuous-time sensor paths with finite aperture,
+  analog response, readout timing, thermal lag, and clock-error modeling.
+
+- Preserve the Tranche 6 correction for X/Y dynamic Earth-aware Ferraris frame
+  transforms with regression coverage for the X, Y, and Z rotation regions.
+
+- Keep the external `imucal` Ferraris route optional through the `calibration`
+  extra. Recovery hashes and historical-versus-local validation status are in
+  [recovery provenance](docs/recovery_provenance.md).
 
 ## 0.1.3 — 2026-07-27
 

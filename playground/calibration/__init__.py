@@ -1,0 +1,155 @@
+"""Synthetic calibration experiments driven by :mod:`imu_error_model`."""
+
+from .bootstrap import CalibrationBootstrapResult, moving_block_bootstrap_calibration
+from .carousel import (
+    CarouselGyrocompassResult,
+    average_sensor_from_base_rotation,
+    run_carousel_heading_confidence_sweep,
+    simulate_carousel_gyrocompass,
+)
+from .data_confidence import (
+    PrefixConfidencePoint,
+    PrefixConfidenceTrace,
+    evaluate_prefix_confidence,
+    run_heading_uncertainty_budget_sweep,
+)
+from .gyrocompass import (
+    EARTH_ROTATION_RADPS,
+    GyrocompassResult,
+    apply_calibration,
+    simulate_static_gyrocompass,
+    static_gyrocompass,
+    wrap_angle_rad,
+)
+from .heading_uncertainty import HeadingUncertaintyEstimate, propagate_heading_uncertainty
+from .imucal_adapter import (
+    ImucalForwardParameters,
+    compute_imucal_ferraris,
+    ferraris_imucal_program,
+    fit_ferraris_equation_reference,
+    imucal_parameter_error,
+    imucal_to_forward_parameters,
+    to_imucal_dataframe,
+    write_imucal_csv,
+)
+from .known_reference import (
+    CalibrationDataset,
+    CalibrationEstimate,
+    ReferenceSegment,
+    ferraris_style_reference_program,
+    fit_known_reference_calibration,
+    simulate_reference_program,
+)
+from .maytag import run_maytag_heading_confidence_sweep, simulate_maytag_gyrocompass
+from .monte_carlo import MonteCarloRecoverySummary, run_monte_carlo_recovery
+from .observability import DesignObservability, analyze_known_reference_observability
+from .planning import JointDataPlan, JointDataPlanPoint, build_joint_data_plan
+from .preintegration import (
+    ConingTruth,
+    ConvergencePoint,
+    MinorImuIncrement,
+    PreintegratedIncrement,
+    ScullingTruth,
+    apply_calibration_to_minor_increments,
+    convergence_study,
+    first_rate_meeting_error,
+    naive_major_interval,
+    preintegrate_continuous_truth,
+    preintegrate_piecewise_constant,
+    recursive_coning_sculling,
+    sample_minor_increments,
+)
+from .quality import (
+    QualityAwareGyrocompassResult,
+    StationarityFlag,
+    StationarityReport,
+    StationarityThresholds,
+    evaluate_stationarity,
+    quality_aware_static_gyrocompass,
+)
+from .rotating_frame import demodulate_interval_average, rotation_z
+from .thermal import (
+    ThermalAxisEstimate,
+    correct_thermal_axis,
+    expected_thermal_axis,
+    fit_accelerometer_thermal_model,
+    fit_thermal_axis,
+    thermal_reference_program,
+)
+from .time_series import MeanCovarianceEstimate, estimate_mean_covariance
+from .uncertainty import LinearFitDiagnostics, linear_fit_diagnostics
+
+__all__ = [
+    "CalibrationBootstrapResult",
+    "CalibrationDataset",
+    "CalibrationEstimate",
+    "CarouselGyrocompassResult",
+    "ConingTruth",
+    "ConvergencePoint",
+    "DesignObservability",
+    "EARTH_ROTATION_RADPS",
+    "GyrocompassResult",
+    "HeadingUncertaintyEstimate",
+    "ImucalForwardParameters",
+    "JointDataPlan",
+    "JointDataPlanPoint",
+    "LinearFitDiagnostics",
+    "MeanCovarianceEstimate",
+    "MinorImuIncrement",
+    "MonteCarloRecoverySummary",
+    "PrefixConfidencePoint",
+    "PrefixConfidenceTrace",
+    "PreintegratedIncrement",
+    "QualityAwareGyrocompassResult",
+    "ReferenceSegment",
+    "ScullingTruth",
+    "StationarityFlag",
+    "StationarityReport",
+    "StationarityThresholds",
+    "ThermalAxisEstimate",
+    "analyze_known_reference_observability",
+    "apply_calibration",
+    "apply_calibration_to_minor_increments",
+    "average_sensor_from_base_rotation",
+    "build_joint_data_plan",
+    "compute_imucal_ferraris",
+    "convergence_study",
+    "correct_thermal_axis",
+    "demodulate_interval_average",
+    "estimate_mean_covariance",
+    "evaluate_prefix_confidence",
+    "evaluate_stationarity",
+    "expected_thermal_axis",
+    "ferraris_imucal_program",
+    "ferraris_style_reference_program",
+    "first_rate_meeting_error",
+    "fit_accelerometer_thermal_model",
+    "fit_ferraris_equation_reference",
+    "fit_known_reference_calibration",
+    "fit_thermal_axis",
+    "imucal_parameter_error",
+    "imucal_to_forward_parameters",
+    "linear_fit_diagnostics",
+    "moving_block_bootstrap_calibration",
+    "naive_major_interval",
+    "preintegrate_continuous_truth",
+    "preintegrate_piecewise_constant",
+    "propagate_heading_uncertainty",
+    "quality_aware_static_gyrocompass",
+    "recursive_coning_sculling",
+    "rotation_z",
+    "run_carousel_heading_confidence_sweep",
+    "run_heading_uncertainty_budget_sweep",
+    "run_maytag_heading_confidence_sweep",
+    "run_monte_carlo_recovery",
+    "sample_minor_increments",
+    "simulate_carousel_gyrocompass",
+    "simulate_maytag_gyrocompass",
+    "simulate_reference_program",
+    "simulate_static_gyrocompass",
+    "static_gyrocompass",
+    "thermal_reference_program",
+    "to_imucal_dataframe",
+    "wrap_angle_rad",
+    "write_imucal_csv",
+]

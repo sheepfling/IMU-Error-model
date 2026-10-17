@@ -1,6 +1,6 @@
 from numpy import eye, ndarray, ones, testing, zeros
 
-from imu_error_model import ImuModelProtocol, ImuOutput
+from imu_error_model import IdealInputImuModelProtocol, ImuModel, ImuModelProtocol, ImuOutput
 
 
 class CustomModel:
@@ -25,4 +25,19 @@ def test_custom_model_can_implement_public_contract() -> None:
     typed_model: ImuModelProtocol = model
     output = typed_model.measure(.01, ones(3), eye(3))
     testing.assert_array_equal(output.delta_v, zeros(3))
+####
+
+
+def test_builtin_model_supports_the_ideal_input_protocol() -> None:
+    model = ImuModel()
+    assert isinstance(model, IdealInputImuModelProtocol)
+    typed_model: IdealInputImuModelProtocol = model
+    output = typed_model.measure_ideal_rates(
+        start_time=0.0,
+        end_time=0.1,
+        specific_force_body=zeros(3),
+        angular_rate_body=zeros(3),
+    )
+    testing.assert_array_equal(output.delta_v, zeros(3))
+    testing.assert_array_equal(output.delta_theta, zeros(3))
 ####

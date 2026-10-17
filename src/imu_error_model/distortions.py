@@ -10,17 +10,29 @@ def apply_distortions(
         cfg: AxisConfig,
         thermal: ThermalState,
         scale_factor: ndarray | None = None,
+        fixed_bias: ndarray | None = None,
+        sensitivity_matrix: ndarray | None = None,
 ) -> ndarray:
-    """Apply a scale-factor, nonlinearity, and thermal distortions to a rate."""
+    """Apply fixed intrinsic, nonlinear, and thermal distortions to a rate."""
     thermal = thermal or ThermalState()
     scale_factor = asarray(cfg.scale_factor) if scale_factor is None else scale_factor
+    fixed_bias = asarray(cfg.fixed_bias) if fixed_bias is None else fixed_bias
+    if sensitivity_matrix is None and cfg.sensitivity_matrix is not None:
+        sensitivity_matrix = asarray(cfg.sensitivity_matrix, dtype=float)
+    ####
     out = signal * (
             1.0 + scale_factor + asarray(thermal.scale_factor_offset)
     )
     if cfg.nonlinear_factor:
         out = out * (1.0 + cfg.nonlinear_factor * norm(signal) ** 2)
     ####
-    return out + thermal.bias_offset
+    if sensitivity_matrix is not None:
+        out = sensitivity_matrix @ out
+    ####
+    if thermal.sensitivity_matrix_offset is not None:
+        out = out + asarray(thermal.sensitivity_matrix_offset, dtype=float) @ signal
+    ####
+    return out + fixed_bias + thermal.bias_offset
 ####
 
 def clip(signal: ndarray, limit: float | None) -> ndarray:

@@ -8,7 +8,7 @@ import ast
 from pathlib import Path
 
 
-DEFAULT_ROOTS = (Path("src"), Path("scripts"), Path("tests"), Path("examples"))
+DEFAULT_ROOTS = (Path("src"), Path("scripts"), Path("tests"), Path("examples"), Path("playground"))
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef)
 REQUIRED_SCOPE_NODES = (
     *FUNCTION_NODES,

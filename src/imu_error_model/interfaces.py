@@ -39,6 +39,36 @@ class ImuModelProtocol(Protocol):
 
 
 @runtime_checkable
+class IdealInputImuModelProtocol(Protocol):
+    """Structural interface for explicit ideal-rate and increment inputs."""
+
+    def measure_ideal_rates(
+            self,
+            *,
+            start_time: float,
+            end_time: float,
+            specific_force_body: ndarray,
+            angular_rate_body: ndarray,
+            temperature_celsius: float | None = None,
+    ) -> ImuOutput:
+        """Corrupt externally supplied ideal body-frame rates."""
+        ...
+
+    def measure_ideal_increments(
+            self,
+            *,
+            start_time: float,
+            end_time: float,
+            delta_v_body: ndarray,
+            delta_theta_body: ndarray,
+            temperature_celsius: float | None = None,
+    ) -> ImuOutput:
+        """Corrupt externally supplied ideal body-frame increments."""
+        ...
+####
+
+
+@runtime_checkable
 class CheckpointableImuModelProtocol(Protocol[CheckpointT]):
     """Structural interface for models that can pause and resume exactly."""
 

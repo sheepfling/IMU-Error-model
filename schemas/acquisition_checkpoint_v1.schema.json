@@ -1,0 +1,1450 @@
+{
+  "$defs": {
+    "AcquisitionConfig": {
+      "additionalProperties": false,
+      "description": "Uniform physical sampling followed by thermal, digital and timestamp effects.\n\nAxis delays are integer-sample readout delays; they do not shift the physical\nsampling aperture. Delays and taps act in fixed instrument-channel coordinates.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "sample_period_s": {
+          "default": 0.01,
+          "exclusiveMinimum": 0.0,
+          "title": "Sample Period S",
+          "type": "number"
+        },
+        "accelerometer_filter": {
+          "$ref": "#/$defs/FirFilterConfig",
+          "default": {
+            "taps": [
+              1.0
+            ]
+          }
+        },
+        "gyroscope_filter": {
+          "$ref": "#/$defs/FirFilterConfig",
+          "default": {
+            "taps": [
+              1.0
+            ]
+          }
+        },
+        "accelerometer_delay_samples": {
+          "default": [
+            0,
+            0,
+            0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "title": "Accelerometer Delay Samples",
+          "type": "array"
+        },
+        "gyroscope_delay_samples": {
+          "default": [
+            0,
+            0,
+            0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "title": "Gyroscope Delay Samples",
+          "type": "array"
+        },
+        "thermal": {
+          "$ref": "#/$defs/ThermalLagConfig",
+          "default": {
+            "time_constant_s": 0.0,
+            "initial_die_temperature_celsius": 25.0
+          }
+        },
+        "clock": {
+          "$ref": "#/$defs/ClockConfig",
+          "default": {
+            "epoch_s": 0.0,
+            "offset_s": 0.0,
+            "frequency_error_ppm": 0.0,
+            "timestamp_jitter_bound_s": 0.0,
+            "jitter_seed": 0
+          }
+        }
+      },
+      "title": "AcquisitionConfig",
+      "type": "object"
+    },
+    "AxisConfig": {
+      "additionalProperties": false,
+      "description": "Noise and deterministic error parameters for one 3-axis channel.",
+      "properties": {
+        "white_noise_density": {
+          "default": 0.0,
+          "description": "White-noise amplitude spectral density in sensor units per square root second; must be non-negative.",
+          "minimum": 0.0,
+          "title": "White Noise Density",
+          "type": "number"
+        },
+        "turn_on_bias_std": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "One-sigma turn-on bias in sensor units, as a scalar broadcast to all axes or a finite non-negative three-axis vector.",
+          "title": "Turn On Bias Std"
+        },
+        "bias_std": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "One-sigma stationary Gauss-Markov bias in sensor units, or random-walk driving density in sensor units per square root second, as a scalar broadcast to all axes or a finite non-negative three-axis vector.",
+          "title": "Bias Std"
+        },
+        "bias_correlation_time": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Gauss-Markov bias correlation time in seconds; must be positive when provided.",
+          "title": "Bias Correlation Time"
+        },
+        "flicker_bias_std": {
+          "default": 0.0,
+          "description": "Target one-sigma flicker-bias level in sensor units; must be non-negative.",
+          "minimum": 0.0,
+          "title": "Flicker Bias Std",
+          "type": "number"
+        },
+        "flicker_min_correlation_time": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lower bound of the flicker correlation-time band in seconds; must be positive when provided.",
+          "title": "Flicker Min Correlation Time"
+        },
+        "flicker_max_correlation_time": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Upper bound of the flicker correlation-time band in seconds; must be positive and greater than the lower bound when provided.",
+          "title": "Flicker Max Correlation Time"
+        },
+        "flicker_components": {
+          "default": 8,
+          "description": "Number of first-order components used to approximate flicker bias; must be at least 2 when flicker bias is enabled.",
+          "minimum": 2,
+          "title": "Flicker Components",
+          "type": "integer"
+        },
+        "fixed_bias": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "Fixed realized additive bias in sensor units, as a scalar broadcast to all axes or a finite three-axis vector.",
+          "title": "Fixed Bias"
+        },
+        "scale_factor": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "Dimensionless multiplicative scale-factor error, as a scalar broadcast to all axes or a finite three-axis vector.",
+          "title": "Scale Factor"
+        },
+        "sensitivity_matrix": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional fixed forward 3x3 sensitivity matrix applied after diagonal scale and nonlinearity; identity is used when omitted.",
+          "title": "Sensitivity Matrix"
+        },
+        "nonlinear_factor": {
+          "default": 0.0,
+          "description": "Dimensionless quadratic nonlinearity coefficient applied to the squared signal magnitude.",
+          "title": "Nonlinear Factor",
+          "type": "number"
+        },
+        "misalignment_std": {
+          "default": 0.0,
+          "description": "Isotropic one-sigma random rotation-vector misalignment angle in radians; use misalignment_covariance for anisotropic uncertainty.",
+          "minimum": 0.0,
+          "title": "Misalignment Std",
+          "type": "number"
+        },
+        "misalignment_covariance": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional symmetric positive-semidefinite 3x3 covariance of the reset rotation vector in radians squared; mutually exclusive with non-zero misalignment_std.",
+          "title": "Misalignment Covariance"
+        },
+        "measurement_range": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Symmetric channel measurement limit in sensor units; clipping is disabled when omitted and the value must be positive when provided.",
+          "title": "Measurement Range"
+        },
+        "thermal_bias_coefficient": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "Bias temperature coefficient in sensor units per degree Celsius, as a scalar or finite three-axis vector.",
+          "title": "Thermal Bias Coefficient"
+        },
+        "thermal_noise_coefficient": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "Noise scale temperature coefficient per degree Celsius, as a scalar or finite three-axis vector.",
+          "title": "Thermal Noise Coefficient"
+        },
+        "thermal_scale_factor_coefficient": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "Scale-factor temperature coefficient per degree Celsius, as a scalar or finite three-axis vector.",
+          "title": "Thermal Scale Factor Coefficient"
+        },
+        "thermal_sensitivity_matrix_coefficient": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional additive 3x3 temperature coefficient per degree Celsius for cross-axis sensitivity drift.",
+          "title": "Thermal Sensitivity Matrix Coefficient"
+        },
+        "reference_temperature_celsius": {
+          "default": 25.0,
+          "description": "Temperature reference point in degrees Celsius for thermal error coefficients.",
+          "title": "Reference Temperature Celsius",
+          "type": "number"
+        },
+        "noise_covariance": {
+          "anyOf": [
+            {
+              "items": {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional symmetric positive-semidefinite 3x3 covariance matrix for channel noise; omitted uses independent noise.",
+          "title": "Noise Covariance"
+        },
+        "quantization_step": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Quantization step in sensor units, as a positive scalar broadcast to all axes or a finite positive three-axis vector; omitted disables quantization.",
+          "title": "Quantization Step"
+        },
+        "apply_clipping": {
+          "default": true,
+          "description": "Whether to clip the channel output to plus or minus measurement_range when a range is configured.",
+          "title": "Apply Clipping",
+          "type": "boolean"
+        },
+        "output_scale": {
+          "default": 1.0,
+          "description": "Positive finite output scale applied to this channel's reported increments.",
+          "exclusiveMinimum": 0.0,
+          "title": "Output Scale",
+          "type": "number"
+        }
+      },
+      "title": "AxisConfig",
+      "type": "object"
+    },
+    "ClockConfig": {
+      "additionalProperties": false,
+      "description": "Reported clock error, NOT physical sampling jitter or oscillator scheduling.\n\ntag(t, k) = epoch + offset + (t - epoch)*(1 + ppm*1e-6) + jitter(k).\nAdjacent intervals share the same jittered boundary, without sorting/clamping.",
+      "properties": {
+        "epoch_s": {
+          "default": 0.0,
+          "title": "Epoch S",
+          "type": "number"
+        },
+        "offset_s": {
+          "default": 0.0,
+          "title": "Offset S",
+          "type": "number"
+        },
+        "frequency_error_ppm": {
+          "default": 0.0,
+          "exclusiveMinimum": -1000000.0,
+          "title": "Frequency Error Ppm",
+          "type": "number"
+        },
+        "timestamp_jitter_bound_s": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Timestamp Jitter Bound S",
+          "type": "number"
+        },
+        "jitter_seed": {
+          "default": 0,
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Jitter Seed",
+          "type": "integer"
+        }
+      },
+      "title": "ClockConfig",
+      "type": "object"
+    },
+    "FirFilterConfig": {
+      "additionalProperties": false,
+      "description": "Causal unity-DC-gain FIR; taps are ordered current to oldest sample.",
+      "properties": {
+        "taps": {
+          "default": [
+            1.0
+          ],
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 4096,
+          "minItems": 1,
+          "title": "Taps",
+          "type": "array"
+        }
+      },
+      "title": "FirFilterConfig",
+      "type": "object"
+    },
+    "ImuConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "accelerometer": {
+          "$ref": "#/$defs/AxisConfig",
+          "default": {
+            "white_noise_density": 0.0,
+            "turn_on_bias_std": 0.0,
+            "bias_std": 0.0,
+            "bias_correlation_time": null,
+            "flicker_bias_std": 0.0,
+            "flicker_min_correlation_time": null,
+            "flicker_max_correlation_time": null,
+            "flicker_components": 8,
+            "fixed_bias": 0.0,
+            "scale_factor": 0.0,
+            "sensitivity_matrix": null,
+            "nonlinear_factor": 0.0,
+            "misalignment_std": 0.0,
+            "misalignment_covariance": null,
+            "measurement_range": null,
+            "thermal_bias_coefficient": 0.0,
+            "thermal_noise_coefficient": 0.0,
+            "thermal_scale_factor_coefficient": 0.0,
+            "thermal_sensitivity_matrix_coefficient": null,
+            "reference_temperature_celsius": 25.0,
+            "noise_covariance": null,
+            "quantization_step": null,
+            "apply_clipping": true,
+            "output_scale": 1.0
+          },
+          "description": "Configuration for the three-axis accelerometer channel."
+        },
+        "gyroscope": {
+          "$ref": "#/$defs/AxisConfig",
+          "default": {
+            "white_noise_density": 0.0,
+            "turn_on_bias_std": 0.0,
+            "bias_std": 0.0,
+            "bias_correlation_time": null,
+            "flicker_bias_std": 0.0,
+            "flicker_min_correlation_time": null,
+            "flicker_max_correlation_time": null,
+            "flicker_components": 8,
+            "fixed_bias": 0.0,
+            "scale_factor": 0.0,
+            "sensitivity_matrix": null,
+            "nonlinear_factor": 0.0,
+            "misalignment_std": 0.0,
+            "misalignment_covariance": null,
+            "measurement_range": null,
+            "thermal_bias_coefficient": 0.0,
+            "thermal_noise_coefficient": 0.0,
+            "thermal_scale_factor_coefficient": 0.0,
+            "thermal_sensitivity_matrix_coefficient": null,
+            "reference_temperature_celsius": 25.0,
+            "noise_covariance": null,
+            "quantization_step": null,
+            "apply_clipping": true,
+            "output_scale": 1.0
+          },
+          "description": "Configuration for the three-axis gyroscope channel."
+        },
+        "gyroscope_specific_force_sensitivity": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional fixed 3x3 gyro specific-force sensitivity in rad/s per m/s\u00b2, mapping ideal accelerometer specific force into gyro rate.",
+          "title": "Gyroscope Specific Force Sensitivity"
+        },
+        "gyroscope_specific_force_sensitivity_temperature_coefficient": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional 3x3 gyro specific-force-sensitivity temperature coefficient in rad/s per m/s\u00b2 per degree Celsius.",
+          "title": "Gyroscope Specific Force Sensitivity Temperature Coefficient"
+        },
+        "output_scale_accelerometer": {
+          "default": 1.0,
+          "description": "Positive multiplier applied to reported accelerometer increments.",
+          "exclusiveMinimum": 0.0,
+          "title": "Output Scale Accelerometer",
+          "type": "number"
+        },
+        "output_scale_gyroscope": {
+          "default": 1.0,
+          "description": "Positive multiplier applied to reported gyroscope increments.",
+          "exclusiveMinimum": 0.0,
+          "title": "Output Scale Gyroscope",
+          "type": "number"
+        }
+      },
+      "title": "ImuConfig",
+      "type": "object"
+    },
+    "ImuModelCheckpoint": {
+      "additionalProperties": false,
+      "description": "Complete resumable state for `imu_error_model.ImuModel`.",
+      "properties": {
+        "schema_version": {
+          "default": 1,
+          "description": "Checkpoint envelope schema version.",
+          "minimum": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "model_type": {
+          "const": "imu_error_model.ImuModel",
+          "default": "imu_error_model.ImuModel",
+          "description": "Model implementation identifier required to restore this checkpoint.",
+          "title": "Model Type",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/ImuConfig",
+          "description": "Canonical IMU configuration used by the model."
+        },
+        "rng_bit_generator": {
+          "description": "Supported NumPy bit-generator class name used by the model RNG.",
+          "enum": [
+            "PCG64",
+            "PCG64DXSM",
+            "Philox",
+            "SFC64",
+            "MT19937"
+          ],
+          "title": "Rng Bit Generator",
+          "type": "string"
+        },
+        "rng_state": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "JSON-compatible NumPy bit-generator state using only nested JSON values.",
+          "title": "Rng State",
+          "type": "object"
+        },
+        "accelerometer_turn_on_bias": {
+          "description": "Sampled accelerometer turn-on bias state.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Accelerometer Turn On Bias",
+          "type": "array"
+        },
+        "gyroscope_turn_on_bias": {
+          "description": "Sampled gyroscope turn-on bias state.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Gyroscope Turn On Bias",
+          "type": "array"
+        },
+        "accelerometer_bias": {
+          "description": "Current accelerometer in-run bias state.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Accelerometer Bias",
+          "type": "array"
+        },
+        "gyroscope_bias": {
+          "description": "Current gyroscope in-run bias state.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Gyroscope Bias",
+          "type": "array"
+        },
+        "accelerometer_flicker_states": {
+          "description": "Current accelerometer finite-band flicker component states.",
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Accelerometer Flicker States",
+          "type": "array"
+        },
+        "gyroscope_flicker_states": {
+          "description": "Current gyroscope finite-band flicker component states.",
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Gyroscope Flicker States",
+          "type": "array"
+        },
+        "accelerometer_misalignment": {
+          "description": "Sampled accelerometer misalignment matrix.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "title": "Accelerometer Misalignment",
+          "type": "array"
+        },
+        "gyroscope_misalignment": {
+          "description": "Sampled gyroscope misalignment matrix.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "title": "Gyroscope Misalignment",
+          "type": "array"
+        },
+        "previous_timestamp": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Timestamp of the previous measurement boundary.",
+          "title": "Previous Timestamp"
+        },
+        "previous_velocity": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Previous gravity-excluded truth velocity.",
+          "title": "Previous Velocity"
+        },
+        "previous_orientation": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Previous world-from-body orientation matrix.",
+          "title": "Previous Orientation"
+        },
+        "thermal_model_type": {
+          "const": "linear",
+          "default": "linear",
+          "description": "Serializable thermal-model implementation identifier.",
+          "title": "Thermal Model Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "config",
+        "rng_bit_generator",
+        "rng_state",
+        "accelerometer_turn_on_bias",
+        "gyroscope_turn_on_bias",
+        "accelerometer_bias",
+        "gyroscope_bias",
+        "accelerometer_flicker_states",
+        "gyroscope_flicker_states",
+        "accelerometer_misalignment",
+        "gyroscope_misalignment",
+        "previous_timestamp",
+        "previous_velocity",
+        "previous_orientation"
+      ],
+      "title": "ImuModelCheckpoint",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ThermalLagConfig": {
+      "additionalProperties": false,
+      "description": "One die-temperature node driven by zero-order-held ambient temperature.",
+      "properties": {
+        "time_constant_s": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Time Constant S",
+          "type": "number"
+        },
+        "initial_die_temperature_celsius": {
+          "default": 25.0,
+          "title": "Initial Die Temperature Celsius",
+          "type": "number"
+        }
+      },
+      "title": "ThermalLagConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Simulation-side replay state; never pass this to a calibration estimator.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "acquisition_config": {
+      "$ref": "#/$defs/AcquisitionConfig"
+    },
+    "sensor": {
+      "$ref": "#/$defs/ImuModelCheckpoint"
+    },
+    "sample_count": {
+      "minimum": 0,
+      "title": "Sample Count",
+      "type": "integer"
+    },
+    "first_physical_time_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "First Physical Time S"
+    },
+    "previous_physical_time_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Physical Time S"
+    },
+    "previous_reported_time_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Reported Time S"
+    },
+    "die_temperature_celsius": {
+      "title": "Die Temperature Celsius",
+      "type": "number"
+    },
+    "filter_history_newest_first": {
+      "items": {
+        "maxItems": 6,
+        "minItems": 6,
+        "prefixItems": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Filter History Newest First",
+      "type": "array"
+    }
+  },
+  "required": [
+    "acquisition_config",
+    "sensor",
+    "sample_count",
+    "first_physical_time_s",
+    "previous_physical_time_s",
+    "previous_reported_time_s",
+    "die_temperature_celsius",
+    "filter_history_newest_first"
+  ],
+  "title": "AcquisitionCheckpoint",
+  "type": "object"
+}

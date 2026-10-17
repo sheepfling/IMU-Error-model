@@ -5,6 +5,7 @@ import argparse
 import csv
 import os
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 from numpy import arange, array, asarray, column_stack, cos, cumsum, diff, eye, geomspace, linspace, maximum, mean, \
@@ -49,7 +50,7 @@ plt.rcParams.update(
     }
 )
 
-def save_figure(figure, output_dir: Path, stem: str) -> None:
+def save_figure(figure: Any, output_dir: Path, stem: str) -> None:
     figure.savefig(output_dir / f"{stem}.png", dpi=220, bbox_inches="tight")
     figure.savefig(output_dir / f"{stem}.svg", bbox_inches="tight")
     plt.close(figure)
